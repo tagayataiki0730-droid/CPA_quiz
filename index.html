@@ -638,6 +638,7 @@ function renderChapterGrid() {
   const grid = document.getElementById('chapterGrid');
   if (state.selectedSubjects.length === 0) { sec.style.display='none'; return; }
   sec.style.display = 'block';
+
   // 選択中科目の章を収集
   const chapterMap = {};
   state.selectedSubjects.forEach(sid => {
@@ -647,9 +648,21 @@ function renderChapterGrid() {
       chapterMap[key].count++;
     });
   });
-  // 初回は全選択
   const keys = Object.keys(chapterMap);
-  if (state.selectedChapters.size === 0) keys.forEach(k => state.selectedChapters.add(k));
+
+  // 科目が新たに追加されたとき、その科目の章だけ新規に全選択する
+  keys.forEach(k => {
+    if (!state._knownChapterKeys) state._knownChapterKeys = new Set();
+    if (!state._knownChapterKeys.has(k)) {
+      state._knownChapterKeys.add(k);
+      state.selectedChapters.add(k);
+    }
+  });
+  // 科目が外れたとき、その章をselectedChaptersからも削除する
+  const keySet = new Set(keys);
+  for (const k of [...state.selectedChapters]) {
+    if (!keySet.has(k)) state.selectedChapters.delete(k);
+  }
 
   grid.innerHTML = '';
   keys.forEach(key => {
@@ -675,7 +688,7 @@ function renderChapterGrid() {
     renderChapterGrid(); updateFilteredCount();
   };
   document.getElementById('chClearAll').onclick = () => {
-    state.selectedChapters.clear();
+    keys.forEach(k => state.selectedChapters.delete(k));
     renderChapterGrid(); updateFilteredCount();
   };
 }
@@ -906,6 +919,7 @@ function retryWrong() {
 
 function goSelect() {
   state.selectedChapters.clear();
+  state._knownChapterKeys = new Set();
   renderChapterGrid();
   updateFilteredCount();
   renderHeaderStats();
