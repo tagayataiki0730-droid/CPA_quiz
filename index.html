@@ -624,8 +624,20 @@ function renderSubjectGrid() {
 
 function toggleSubject(id) {
   const idx = state.selectedSubjects.indexOf(id);
-  if (idx >= 0) state.selectedSubjects.splice(idx, 1);
-  else state.selectedSubjects.push(id);
+  if (idx >= 0) {
+    // 科目を外す → その科目の章キーを knownChapterKeys と selectedChapters から削除
+    state.selectedSubjects.splice(idx, 1);
+    if (state._knownChapterKeys) {
+      for (const k of [...state._knownChapterKeys]) {
+        if (k.startsWith(id + '||')) {
+          state._knownChapterKeys.delete(k);
+          state.selectedChapters.delete(k);
+        }
+      }
+    }
+  } else {
+    state.selectedSubjects.push(id);
+  }
   document.querySelectorAll('.subject-btn').forEach(btn => {
     btn.classList.toggle('active', state.selectedSubjects.includes(btn.dataset.id));
   });
@@ -634,43 +646,39 @@ function toggleSubject(id) {
 }
 
 function renderChapterGrid() {
-  const sec = document.getElementById('chapterSection');
+  const sec  = document.getElementById('chapterSection');
   const grid = document.getElementById('chapterGrid');
-  if (state.selectedSubjects.length === 0) { sec.style.display='none'; return; }
+  if (state.selectedSubjects.length === 0) { sec.style.display = 'none'; return; }
   sec.style.display = 'block';
 
-  // 選択中科目の章を収集
+  // 章マップを収集
   const chapterMap = {};
   state.selectedSubjects.forEach(sid => {
     (allData[sid] || []).forEach(q => {
       const key = sid + '||' + q.chapter;
-      if (!chapterMap[key]) chapterMap[key] = { sid, chapter: q.chapter, count: 0 };
+      if (!chapterMap[key]) chapterMap[key] = { chapter: q.chapter, count: 0 };
       chapterMap[key].count++;
     });
   });
   const keys = Object.keys(chapterMap);
 
-  // 科目が新たに追加されたとき、その科目の章だけ新規に全選択する
+  // 新しく現れた章キーだけ selectedChapters に追加（既知の章は触らない）
+  if (!state._knownChapterKeys) state._knownChapterKeys = new Set();
   keys.forEach(k => {
-    if (!state._knownChapterKeys) state._knownChapterKeys = new Set();
     if (!state._knownChapterKeys.has(k)) {
       state._knownChapterKeys.add(k);
-      state.selectedChapters.add(k);
+      state.selectedChapters.add(k);  // 初登場のみ全選択
     }
   });
-  // 科目が外れたとき、その章をselectedChaptersからも削除する
-  const keySet = new Set(keys);
-  for (const k of [...state.selectedChapters]) {
-    if (!keySet.has(k)) state.selectedChapters.delete(k);
-  }
 
+  // 描画のみ（selectedChapters の状態をそのまま反映する）
   grid.innerHTML = '';
   keys.forEach(key => {
     const { chapter, count } = chapterMap[key];
-    const item = document.createElement('div');
     const checked = state.selectedChapters.has(key);
+    const item = document.createElement('div');
     item.className = 'chapter-item' + (checked ? ' active' : '');
-    item.innerHTML = `<input type="checkbox" ${checked?'checked':''}>
+    item.innerHTML = `<input type="checkbox" ${checked ? 'checked' : ''}>
       <span class="chapter-name">${chapter || '（未分類）'}</span>
       <span class="chapter-cnt">${count}</span>`;
     item.onclick = () => {
@@ -685,11 +693,13 @@ function renderChapterGrid() {
 
   document.getElementById('chSelectAll').onclick = () => {
     keys.forEach(k => state.selectedChapters.add(k));
-    renderChapterGrid(); updateFilteredCount();
+    renderChapterGrid();
+    updateFilteredCount();
   };
   document.getElementById('chClearAll').onclick = () => {
     keys.forEach(k => state.selectedChapters.delete(k));
-    renderChapterGrid(); updateFilteredCount();
+    renderChapterGrid();
+    updateFilteredCount();
   };
 }
 
