@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>コーポレートファイナンス計算ツール</title>
+<style>
+  :root{
+    --bg:#f6f5f2;
+    --panel:#ffffff;
+    --ink:#1c1f26;
+    --sub:#5b6270;
+    --line:#e2e0da;
+    --accent:#2f5d50;
+    --accent-soft:#e8efec;
+    --danger:#8a3324;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Hiragino Sans","Yu Gothic",system-ui,-apple-system,sans-serif;
+    line-height:1.6;
+    padding:32px 16px 80px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+  header{margin-bottom:24px;}
+  h1{
+    font-size:20px;
+    font-weight:700;
+    margin:0 0 4px;
+    letter-spacing:.02em;
+  }
+  header p{margin:0;color:var(--sub);font-size:13px;}
+
+  .type-select{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+  }
+  .type-btn{
+    flex:1;
+    min-width:220px;
+    padding:14px 16px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:10px;
+    cursor:pointer;
+    text-align:left;
+    font-size:13px;
+    color:var(--sub);
+    transition:.15s;
+  }
+  .type-btn b{display:block;color:var(--ink);font-size:14px;margin-bottom:2px;}
+  .type-btn:hover{border-color:var(--accent);}
+  .type-btn.active{
+    border-color:var(--accent);
+    background:var(--accent-soft);
+    color:var(--ink);
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:24px;
+  }
+  .panel h2{font-size:15px;margin:0 0 4px;}
+  .panel .desc{font-size:12px;color:var(--sub);margin:0 0 20px;}
+
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    margin-bottom:20px;
+  }
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field.full{grid-column:1/-1;}
+  label{font-size:12.5px;color:var(--sub);}
+  input[type=number]{
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    font-variant-numeric:tabular-nums;
+    background:#fff;
+  }
+  input[type=number]:focus{outline:2px solid var(--accent);outline-offset:1px;}
+
+  .run{
+    width:100%;
+    padding:13px;
+    border:none;
+    border-radius:8px;
+    background:var(--accent);
+    color:#fff;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    letter-spacing:.02em;
+  }
+  .run:hover{opacity:.92;}
+
+  .results{margin-top:20px;display:none;}
+  .results.show{display:block;}
+  .result-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    padding:11px 4px;
+    border-bottom:1px solid var(--line);
+  }
+  .result-row:last-child{border-bottom:none;}
+  .result-row .label{font-size:13px;color:var(--sub);}
+  .result-row .value{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .note{
+    margin-top:12px;
+    font-size:11.5px;
+    color:var(--danger);
+    display:none;
+  }
+  .note.show{display:block;}
+
+  .hint{font-size:11px;color:var(--sub);margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>コーポレートファイナンス計算ツール</h1>
+    <p>問題タイプを選び、定数を入力して計算してください。</p>
+  </header>
+
+  <div class="type-select" id="typeSelect">
+    <button class="type-btn active" data-type="cap1">
+      <b>Ⅰ.資本構成①:財務危機費用が定額</b>
+      成功/失敗CFと償還額から株式・負債・企業価値を算出
+    </button>
+    <button class="type-btn" data-type="cap2">
+      <b>Ⅰ.資本構成②:財務危機費用が二次関数(wD²)</b>
+      節税効果と倒産費用のトレードオフから最適負債D*を算出
+    </button>
+    <button class="type-btn" data-type="ag1">
+      <b>Ⅰ.エージェンシー①:過小投資問題</b>
+      NPVが正でも負債の存在で株主が投資を見送るケース
+    </button>
+    <button class="type-btn" data-type="ag2">
+      <b>Ⅰ.エージェンシー②:資産剥ぎ取り</b>
+      NPVが負でも株主が資産売却・配当を選ぶケース
+    </button>
+    <button class="type-btn" data-type="ag3">
+      <b>Ⅰ.エージェンシー③:リスクシフティング</b>
+      負債水準により経営者が選ぶ戦略が変わるケース
+    </button>
+    <button class="type-btn" data-type="ag4">
+      <b>Ⅰ.エージェンシー④:モラルハザード(無借金)</b>
+      経営努力と株式保有比率からインセンティブを判定
+    </button>
+    <button class="type-btn" data-type="ag5">
+      <b>Ⅰ.エージェンシー⑤:規律付け効果(2期間・解雇リスク)</b>
+      負債の満期(t1/t2)が経営努力の規律付けに与える影響
+    </button>
+    <button class="type-btn" data-type="info1">
+      <b>Ⅰ.情報の非対称性①:モラルハザードと株価</b>
+      経営者の保有比率から努力の有無・株価・必要保有株数を算出
+    </button>
+    <button class="type-btn" data-type="info2">
+      <b>Ⅰ.情報の非対称性②③:Myers-Majluf型逆選択</b>
+      公募増資の公表前後の株価と、実施可否の均衡を自動判定
+    </button>
+    <button class="type-btn" data-type="fx1">
+      <b>Ⅱ.先渡契約:為替予約による円建て利益</b>
+      外貨建て代金と円建て費用から、レート別の円建て利益を算出
+    </button>
+    <button class="type-btn" data-type="fut1">
+      <b>Ⅱ.先物①:値洗い損益・差金決済</b>
+      価格系列と建玉(買い/売り)から損益を算出
+    </button>
+    <button class="type-btn" data-type="fut2">
+      <b>Ⅱ.先物②:無裁定価格</b>
+      保管費用/便益型、配当利回り型(連続複利)の無裁定価格を算出
+    </button>
+    <button class="type-btn" data-type="ir1">
+      <b>Ⅱ.金利リスク①:CF流列の金利感応度</b>
+      資産・負債のCF流列から株式価値と金利変化への感応度を算出
+    </button>
+    <button class="type-btn" data-type="ir2">
+      <b>Ⅱ.金利リスク②③:債券デュレーション</b>
+      マコーレー・修正デュレーションと価格変化率を算出
+    </button>
+    <button class="type-btn" data-type="ir4">
+      <b>Ⅱ.金利リスク④:デュレーションギャップ</b>
+      資産・負債のデュレーションギャップとイミュナイゼーションを算出
+    </button>
+    <button class="type-btn" data-type="opt1">
+      <b>Ⅱ.金融オプション:二項モデル(1期間)</b>
+      株価u/d・行使価格からコール/プットの価値・複製・アメリカン型を算出
+    </button>
+    <button class="type-btn" data-type="optN">
+      <b>Ⅱ.金融オプション:二項モデル(N期間)</b>
+      任意の期間数で、ヨーロピアン/アメリカン価値と任意時点・状態の中間値を算出
+    </button>
+    <button class="type-btn" data-type="bs1">
+      <b>Ⅲ.オプション評価:ブラック・ショールズ・モデル</b>
+      株価・行使価格・満期・ボラティリティ・金利からコール/プット価値を算出
+    </button>
+    <button class="type-btn" data-type="fxhedge">
+      <b>Ⅲ.オプションによる為替リスク管理</b>
+      通貨オプション(プット/コール)によるヘッジ後の円建て利益を算出
+    </button>
+    <button class="type-btn" data-type="realopt1">
+      <b>Ⅲ.リアルオプション:延期オプション</b>
+      投資延期(コール型)/売却延期(プット型)のオプション価値と実施時点を判定
+    </button>
+    <button class="type-btn" data-type="realopt2">
+      <b>Ⅲ.リアルオプション:成長・撤退オプション</b>
+      永久CFの二項変化から、拡張オプション・撤退オプションを含むNPVを算出
+    </button>
+    <button class="type-btn" data-type="ma1">
+      <b>Ⅲ.合併・買収:シナジーとNPV</b>
+      買収価格からシナジー・NPV・株価・株式交換の発行株数・最大プレミアムを算出
+    </button>
+  </div>
+
+  <div class="panel">
+
+    <!-- ===== Type 1 ===== -->
+    <div class="type-panel" id="panel-cap1">
+      <h2>財務危機費用が定額のケース</h2>
+      <p class="desc">翌年のCFが成功/失敗の2状態で確定分布し、債務不履行時に一定額の財務危機費用が生じる場合の株式・負債・企業価値を求めます。</p>
+      <div class="grid">
+        <div class="field"><label>成功時CF</label><input type="number" id="c1_su" value="308"></div>
+        <div class="field"><label>失敗時CF</label><input type="number" id="c1_fa" value="165"></div>
+        <div class="field"><label>成功確率</label><input type="number" id="c1_p" value="0.5" step="0.01"></div>
+        <div class="field"><label>割引率(資本コスト)</label><input type="number" id="c1_r" value="0.1" step="0.001"></div>
+        <div class="field"><label>負債の償還額 D</label><input type="number" id="c1_D" value="132"></div>
+        <div class="field"><label>債務不履行時の財務危機費用</label><input type="number" id="c1_cost" value="33"></div>
+      </div>
+      <button class="run" onclick="calcCap1()">計算する</button>
+      <div class="results" id="res-cap1">
+        <div class="result-row"><span class="label">株式の価値</span><span class="value" id="c1_out_e"></span></div>
+        <div class="result-row"><span class="label">負債の価値</span><span class="value" id="c1_out_d"></span></div>
+        <div class="result-row"><span class="label">企業の価値</span><span class="value" id="c1_out_v"></span></div>
+      </div>
+      <p class="note" id="c1_note">※成功状態でも債務不履行が生じる設定です。前提を確認してください。</p>
+    </div>
+
+    <!-- ===== Type 2 ===== -->
+    <div class="type-panel" id="panel-cap2" style="display:none;">
+      <h2>財務危機費用が二次関数(wD²)のケース</h2>
+      <p class="desc">法人税の節税効果と財務危機費用(wD²)のトレードオフから、企業価値を最大化する負債D*と、その時の企業価値・負債比率を求めます。<br>
+      (前提:成功状態は常に債務履行、失敗状態のみ債務不履行になる範囲でD*が決まるケース)</p>
+      <div class="grid">
+        <div class="field"><label>成功時CF</label><input type="number" id="c2_su" value="209"></div>
+        <div class="field"><label>失敗時CF</label><input type="number" id="c2_fa" value="44"></div>
+        <div class="field"><label>成功確率</label><input type="number" id="c2_p" value="0.5" step="0.01"></div>
+        <div class="field"><label>割引率(資本コスト)</label><input type="number" id="c2_r" value="0.1" step="0.001"></div>
+        <div class="field"><label>法人税率 τ</label><input type="number" id="c2_tax" value="0.4" step="0.01"></div>
+        <div class="field"><label>財務危機費用係数 w</label><input type="number" id="c2_w" value="0.0016" step="0.0001"></div>
+      </div>
+      <button class="run" onclick="calcCap2()">計算する</button>
+      <div class="results" id="res-cap2">
+        <div class="result-row"><span class="label">最適負債額 D*</span><span class="value" id="c2_out_D"></span></div>
+        <div class="result-row"><span class="label">D*における企業価値</span><span class="value" id="c2_out_V"></span></div>
+        <div class="result-row"><span class="label">D*における負債比率</span><span class="value" id="c2_out_ratio"></span></div>
+      </div>
+      <p class="note" id="c2_note">※D*が失敗時CFと成功時CFの範囲外です。前提(成功時のみ債務履行)が崩れている可能性があります。</p>
+    </div>
+
+    <!-- ===== Agency 1: 過小投資 ===== -->
+    <div class="type-panel" id="panel-ag1" style="display:none;">
+      <h2>エージェンシー①:過小投資問題</h2>
+      <p class="desc">既存の事業CFに、投資(t=0に費用I)を実行した場合の追加CFを加えたとき、株式・負債・企業の価値がどう変化するかを求めます。財務危機費用はなし(デフォルト時は残余CFがそのまま債権者に渡る)を前提とします。</p>
+      <div class="grid">
+        <div class="field"><label>事業CF・成功時</label><input type="number" id="a1_su" value="220"></div>
+        <div class="field"><label>事業CF・失敗時</label><input type="number" id="a1_fa" value="77"></div>
+        <div class="field"><label>投資CF・成功時</label><input type="number" id="a1_isu" value="33"></div>
+        <div class="field"><label>投資CF・失敗時</label><input type="number" id="a1_ifa" value="33"></div>
+        <div class="field"><label>投資費用 I(t=0)</label><input type="number" id="a1_cost" value="25"></div>
+        <div class="field"><label>負債の償還額 D</label><input type="number" id="a1_D" value="110"></div>
+        <div class="field"><label>成功確率</label><input type="number" id="a1_p" value="0.5" step="0.01"></div>
+        <div class="field"><label>割引率(資本コスト)</label><input type="number" id="a1_r" value="0.1" step="0.001"></div>
+      </div>
+      <button class="run" onclick="calcAg1()">計算する</button>
+      <div class="results" id="res-ag1">
+        <div class="result-row"><span class="label">株式価値の増加</span><span class="value" id="a1_out_e"></span></div>
+        <div class="result-row"><span class="label">負債価値の増加</span><span class="value" id="a1_out_d"></span></div>
+        <div class="result-row"><span class="label">企業価値の増加</span><span class="value" id="a1_out_v"></span></div>
+        <div class="result-row"><span class="label">投資実行に必要な負債額の上限(D以下)</span><span class="value" id="a1_out_th"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Agency 2: 資産剥ぎ取り ===== -->
+    <div class="type-panel" id="panel-ag2" style="display:none;">
+      <h2>エージェンシー②:資産剥ぎ取り(資産売却・配当)</h2>
+      <p class="desc">t=0の資産売却により、将来の事業CFが減少する代わりに対価を即座に配当として受け取れる場合の価値変化を求めます。対価はt=0時点で株主に渡るため割引きません。</p>
+      <div class="grid">
+        <div class="field"><label>事業CF・成功時</label><input type="number" id="a2_su" value="220"></div>
+        <div class="field"><label>事業CF・失敗時</label><input type="number" id="a2_fa" value="77"></div>
+        <div class="field"><label>CF減少分・成功時(負値)</label><input type="number" id="a2_dsu" value="-44"></div>
+        <div class="field"><label>CF減少分・失敗時(負値)</label><input type="number" id="a2_dfa" value="-44"></div>
+        <div class="field"><label>売却対価(t=0配当)</label><input type="number" id="a2_proceeds" value="30"></div>
+        <div class="field"><label>負債の償還額 D</label><input type="number" id="a2_D" value="110"></div>
+        <div class="field"><label>成功確率</label><input type="number" id="a2_p" value="0.5" step="0.01"></div>
+        <div class="field"><label>割引率(資本コスト)</label><input type="number" id="a2_r" value="0.1" step="0.001"></div>
+      </div>
+      <button class="run" onclick="calcAg2()">計算する</button>
+      <div class="results" id="res-ag2">
+        <div class="result-row"><span class="label">株式価値の増加</span><span class="value" id="a2_out_e"></span></div>
+        <div class="result-row"><span class="label">負債価値の増加</span><span class="value" id="a2_out_d"></span></div>
+        <div class="result-row"><span class="label">企業価値の増加</span><span class="value" id="a2_out_v"></span></div>
+        <div class="result-row"><span class="label">売却を思いとどまる負債額の上限(D未満)</span><span class="value" id="a2_out_th"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Agency 3: リスクシフティング ===== -->
+    <div class="type-panel" id="panel-ag3" style="display:none;">
+      <h2>エージェンシー③:リスクシフティング(戦略選択)</h2>
+      <p class="desc">低リスク戦略Lと高リスク戦略Hのそれぞれについて株式価値を求め、経営者(株式価値最大化)が選ぶ戦略と、その戦略のもとでの企業価値を求めます。財務危機費用はなしを前提とします。</p>
+      <div class="grid">
+        <div class="field"><label>戦略L・成功時CF</label><input type="number" id="a3_lsu" value="660"></div>
+        <div class="field"><label>戦略L・失敗時CF</label><input type="number" id="a3_lfa" value="440"></div>
+        <div class="field"><label>戦略H・成功時CF</label><input type="number" id="a3_hsu" value="880"></div>
+        <div class="field"><label>戦略H・失敗時CF</label><input type="number" id="a3_hfa" value="110"></div>
+        <div class="field"><label>負債の償還額 D</label><input type="number" id="a3_D" value="165"></div>
+        <div class="field"><label>成功確率</label><input type="number" id="a3_p" value="0.5" step="0.01"></div>
+        <div class="field"><label>割引率(資本コスト)</label><input type="number" id="a3_r" value="0.1" step="0.001"></div>
+      </div>
+      <button class="run" onclick="calcAg3()">計算する</button>
+      <div class="results" id="res-ag3">
+        <div class="result-row"><span class="label">戦略Lの株式価値</span><span class="value" id="a3_out_eqL"></span></div>
+        <div class="result-row"><span class="label">戦略Hの株式価値</span><span class="value" id="a3_out_eqH"></span></div>
+        <div class="result-row"><span class="label">経営者が選ぶ戦略</span><span class="value" id="a3_out_chosen"></span></div>
+        <div class="result-row"><span class="label">選ばれた戦略のもとでの企業価値</span><span class="value" id="a3_out_v"></span></div>
+        <div class="result-row"><span class="label">経営者にLを選ばせる負債額の上限(D以下)</span><span class="value" id="a3_out_th"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Agency 4: モラルハザード(無借金) ===== -->
+    <div class="type-panel" id="panel-ag4" style="display:none;">
+      <h2>エージェンシー④:モラルハザード(無借金・経営努力)</h2>
+      <p class="desc">経営努力の有無で成功確率が変わるとき、企業価値の増加分と、経営者(一定の株式保有比率をもつ)にとっての価値の増加分、努力を促すために必要な最低保有比率を求めます。</p>
+      <div class="grid">
+        <div class="field"><label>成功時CF</label><input type="number" id="a4_su" value="275"></div>
+        <div class="field"><label>失敗時CF</label><input type="number" id="a4_fa" value="165"></div>
+        <div class="field"><label>成功確率(努力なし)</label><input type="number" id="a4_p0" value="0.4" step="0.01"></div>
+        <div class="field"><label>成功確率(努力あり)</label><input type="number" id="a4_p1" value="0.8" step="0.01"></div>
+        <div class="field"><label>努力の費用</label><input type="number" id="a4_cost" value="12"></div>
+        <div class="field"><label>割引率(資本コスト)</label><input type="number" id="a4_r" value="0.1" step="0.001"></div>
+        <div class="field"><label>経営者の株式保有比率</label><input type="number" id="a4_stake" value="0.1" step="0.001"></div>
+      </div>
+      <button class="run" onclick="calcAg4()">計算する</button>
+      <div class="results" id="res-ag4">
+        <div class="result-row"><span class="label">企業価値の増加</span><span class="value" id="a4_out_v"></span></div>
+        <div class="result-row"><span class="label">経営者の価値の増加(現在の保有比率で)</span><span class="value" id="a4_out_m"></span></div>
+        <div class="result-row"><span class="label">努力を促す最低保有比率</span><span class="value" id="a4_out_stake"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Agency 5: 規律付け効果(2期間・解雇リスク) ===== -->
+    <div class="type-panel" id="panel-ag5" style="display:none;">
+      <h2>エージェンシー⑤:規律付け効果(2期間・解雇リスク)</h2>
+      <p class="desc">t=1とt=2にCF・報酬が実現する2期間モデルです。負債の満期が到来する期に (CF−報酬)&lt;D となると債務不履行となり経営者は解雇され、それ以降の期の報酬を失います(満期がt2の場合は最終期のため解雇の実害なし)。経営努力の有無による経営者の報酬価値の変化(努力費用control)を求めます。</p>
+      <div class="grid">
+        <div class="field"><label>t1・成功時CF</label><input type="number" id="a5_t1su" value="165"></div>
+        <div class="field"><label>t1・失敗時CF</label><input type="number" id="a5_t1fa" value="110"></div>
+        <div class="field"><label>t2・成功時CF</label><input type="number" id="a5_t2su" value="181.5"></div>
+        <div class="field"><label>t2・失敗時CF</label><input type="number" id="a5_t2fa" value="121"></div>
+        <div class="field"><label>t1・成功時報酬</label><input type="number" id="a5_c1su" value="16.5"></div>
+        <div class="field"><label>t1・失敗時報酬</label><input type="number" id="a5_c1fa" value="11"></div>
+        <div class="field"><label>t2・成功時報酬</label><input type="number" id="a5_c2su" value="18.15"></div>
+        <div class="field"><label>t2・失敗時報酬</label><input type="number" id="a5_c2fa" value="12.1"></div>
+        <div class="field"><label>成功確率(努力なし)</label><input type="number" id="a5_p0" value="0.4" step="0.01"></div>
+        <div class="field"><label>成功確率(努力あり)</label><input type="number" id="a5_p1" value="0.8" step="0.01"></div>
+        <div class="field"><label>努力の費用</label><input type="number" id="a5_cost" value="7"></div>
+        <div class="field"><label>負債の償還額 D</label><input type="number" id="a5_D" value="50"></div>
+        <div class="field"><label>負債の満期</label>
+          <select id="a5_maturity" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;">
+            <option value="t1">t1</option>
+            <option value="t2">t2</option>
+          </select>
+        </div>
+        <div class="field"><label>割引率(資本コスト)</label><input type="number" id="a5_r" value="0.1" step="0.001"></div>
+      </div>
+      <button class="run" onclick="calcAg5()">計算する</button>
+      <div class="results" id="res-ag5">
+        <div class="result-row"><span class="label">報酬価値の増加(努力費用控除前)</span><span class="value" id="a5_out_diff"></span></div>
+        <div class="result-row"><span class="label">経営者にとっての正味の価値の増加(努力費用控除後)</span><span class="value" id="a5_out_net"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Info 1: モラルハザードと株価 ===== -->
+    <div class="type-panel" id="panel-info1" style="display:none;">
+      <h2>情報の非対称性①:モラルハザードと株価</h2>
+      <p class="desc">経営努力の有無で成功確率が変わるとき、経営者の株式保有比率に応じて努力するかどうかを判定し、そのもとでの株価と、努力を促すために必要な最低保有株数を求めます。</p>
+      <div class="grid">
+        <div class="field"><label>成功時CF</label><input type="number" id="i1_su" value="330"></div>
+        <div class="field"><label>失敗時CF</label><input type="number" id="i1_fa" value="220"></div>
+        <div class="field"><label>成功確率(努力なし)</label><input type="number" id="i1_p0" value="0.4" step="0.01"></div>
+        <div class="field"><label>成功確率(努力あり)</label><input type="number" id="i1_p1" value="0.7" step="0.01"></div>
+        <div class="field"><label>努力の費用</label><input type="number" id="i1_cost" value="12"></div>
+        <div class="field"><label>割引率(資本コスト)</label><input type="number" id="i1_r" value="0.1" step="0.001"></div>
+        <div class="field"><label>発行済株式数</label><input type="number" id="i1_shares" value="15"></div>
+        <div class="field"><label>経営者の株式保有比率</label><input type="number" id="i1_stake" value="1" step="0.001"></div>
+      </div>
+      <button class="run" onclick="calcInfo1()">計算する</button>
+      <div class="results" id="res-info1">
+        <div class="result-row"><span class="label">経営者は努力するか</span><span class="value" id="i1_out_effort"></span></div>
+        <div class="result-row"><span class="label">株価</span><span class="value" id="i1_out_price"></span></div>
+        <div class="result-row"><span class="label">努力を促す最低保有株数</span><span class="value" id="i1_out_shares"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Info 2/3: Myers-Majluf ===== -->
+    <div class="type-panel" id="panel-info2" style="display:none;">
+      <h2>情報の非対称性②③:Myers-Majlufモデル(公募増資の逆選択)</h2>
+      <p class="desc">経営者が私的情報(可能性1/2)を持つとき、公募増資による投資実施の公表前後の株価と、各情報のもとで実際に実施されるかどうかを、均衡が崩れる場合の分離/非実施まで含めて自動判定します。金額は「単位」欄で指定した通貨換算(例:1億円=100000000)で入力してください。</p>
+      <div class="grid">
+        <div class="field full"><label>可能性1: 資産価値 / 投資価値 / 投資費用 / 確率</label></div>
+        <div class="field"><label>資産価値A1</label><input type="number" id="i2_a1" value="10"></div>
+        <div class="field"><label>投資価値V1</label><input type="number" id="i2_v1" value="6"></div>
+        <div class="field"><label>投資費用C1</label><input type="number" id="i2_c1" value="4"></div>
+        <div class="field"><label>確率p1</label><input type="number" id="i2_p1" value="0.3" step="0.01"></div>
+        <div class="field full"><label>可能性2: 資産価値 / 投資価値 / 投資費用 / 確率</label></div>
+        <div class="field"><label>資産価値A2</label><input type="number" id="i2_a2" value="4"></div>
+        <div class="field"><label>投資価値V2</label><input type="number" id="i2_v2" value="3.5"></div>
+        <div class="field"><label>投資費用C2</label><input type="number" id="i2_c2" value="4"></div>
+        <div class="field"><label>確率p2</label><input type="number" id="i2_p2" value="0.7" step="0.01"></div>
+        <div class="field"><label>発行済株式数</label><input type="number" id="i2_shares" value="1000000"></div>
+        <div class="field"><label>金額の単位(円換算)</label><input type="number" id="i2_scale" value="100000000"></div>
+      </div>
+      <button class="run" onclick="calcInfo2()">計算する</button>
+      <div class="results" id="res-info2">
+        <div class="result-row"><span class="label">公表前の株価</span><span class="value" id="i2_out_pre"></span></div>
+        <div class="result-row"><span class="label">公表直後の株価(プール価格)</span><span class="value" id="i2_out_pool"></span></div>
+        <div class="result-row"><span class="label">可能性1のとき実施するか</span><span class="value" id="i2_out_d1"></span></div>
+        <div class="result-row"><span class="label">可能性2のとき実施するか</span><span class="value" id="i2_out_d2"></span></div>
+        <div class="result-row"><span class="label">最終的な株価(均衡を踏まえて)</span><span class="value" id="i2_out_final"></span></div>
+      </div>
+      <p class="note show" id="i2_note" style="color:var(--sub);"></p>
+    </div>
+
+    <!-- ===== FX1: 先渡契約 ===== -->
+    <div class="type-panel" id="panel-fx1" style="display:none;">
+      <h2>先渡契約:為替予約による円建て利益</h2>
+      <p class="desc">外貨建ての受取代金と円建ての費用から、為替レート(予約レートまたは実勢レート)を用いて円建て利益を求めます。為替予約を結んでいる場合は予約レートを、結んでいない場合は実勢レートを入力してください。</p>
+      <div class="grid">
+        <div class="field"><label>外貨建て受取代金(万ドル等)</label><input type="number" id="fx1_amount" value="15"></div>
+        <div class="field"><label>適用する為替レート(円/外貨)</label><input type="number" id="fx1_rate" value="120"></div>
+        <div class="field"><label>円建て費用(万円)</label><input type="number" id="fx1_cost" value="1200"></div>
+      </div>
+      <button class="run" onclick="calcFx1()">計算する</button>
+      <div class="results" id="res-fx1">
+        <div class="result-row"><span class="label">円建て利益</span><span class="value" id="fx1_out"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Futures 1: 値洗い損益・差金決済 ===== -->
+    <div class="type-panel" id="panel-fut1" style="display:none;">
+      <h2>先物①:値洗い損益・差金決済</h2>
+      <p class="desc">時点0から始まる先物価格の系列(カンマ区切り)を入力してください。「値洗い損益」は対象日とその前日の価格差、「差金決済」は建玉時点と決済時点の価格差で計算します(売り建玉は符号が反転します)。</p>
+      <div class="grid">
+        <div class="field full"><label>先物価格の系列(時点0から、カンマ区切り)</label><input type="text" id="f1_prices" value="32,28,26,30,33,31" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;"></div>
+        <div class="field">
+          <label>建玉の種類</label>
+          <select id="f1_pos" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;">
+            <option value="buy">買い</option>
+            <option value="sell">売り</option>
+          </select>
+        </div>
+        <div class="field"><label>建玉の約定時点</label><input type="number" id="f1_entry" value="0"></div>
+        <div class="field">
+          <label>計算対象</label>
+          <select id="f1_mode" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;">
+            <option value="mtm">値洗い損益(特定の時点)</option>
+            <option value="settle">差金決済(反対売買で手仕舞い)</option>
+          </select>
+        </div>
+        <div class="field"><label>対象時点(値洗い)/決済時点(差金決済)</label><input type="number" id="f1_target" value="1"></div>
+      </div>
+      <button class="run" onclick="calcFut1()">計算する</button>
+      <div class="results" id="res-fut1">
+        <div class="result-row"><span class="label">1単位当たり損益</span><span class="value" id="f1_out"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Futures 2: 無裁定価格 ===== -->
+    <div class="type-panel" id="panel-fut2" style="display:none;">
+      <h2>先物②:無裁定価格</h2>
+      <p class="desc">2つの計算方式を切り替えられます。「保管費用/便益型」は現物価格を将来価値に複利計算し、保管費用を加算・便益を控除する離散モデル。「配当利回り型」は連続複利のもとで金利と配当利回りの差から先物価格を求めるモデルです。</p>
+      <div class="grid">
+        <div class="field full">
+          <label>計算方式</label>
+          <select id="f2_mode" onchange="toggleFut2Mode()" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;">
+            <option value="storage">保管費用/便益型(離散複利)</option>
+            <option value="dividend">配当利回り型(連続複利)</option>
+          </select>
+        </div>
+      </div>
+      <div id="f2_storage_fields" class="grid">
+        <div class="field"><label>現物価格</label><input type="number" id="f2s_spot" value="100"></div>
+        <div class="field"><label>利子率(1期間)</label><input type="number" id="f2s_r" value="0.02" step="0.001"></div>
+        <div class="field"><label>保管費用(1単位あたり、将来価値)</label><input type="number" id="f2s_storage" value="8"></div>
+        <div class="field"><label>保管の便益(1単位あたり、将来価値)</label><input type="number" id="f2s_benefit" value="4"></div>
+      </div>
+      <div id="f2_dividend_fields" class="grid" style="display:none;">
+        <div class="field"><label>現物価格</label><input type="number" id="f2d_spot" value="120"></div>
+        <div class="field"><label>利子率(連続複利、年率など)</label><input type="number" id="f2d_r" value="0.02" step="0.001"></div>
+        <div class="field"><label>配当利回り(連続複利)</label><input type="number" id="f2d_q" value="0.04" step="0.001"></div>
+        <div class="field"><label>期間T</label><input type="number" id="f2d_T" value="1" step="0.1"></div>
+      </div>
+      <button class="run" onclick="calcFut2()">計算する</button>
+      <div class="results" id="res-fut2">
+        <div class="result-row"><span class="label">先物の無裁定価格</span><span class="value" id="f2_out"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== IR1: CF流列の金利感応度 ===== -->
+    <div class="type-panel" id="panel-ir1" style="display:none;">
+      <h2>金利リスク①:CF流列の金利感応度</h2>
+      <p class="desc">資産と負債それぞれのCF流列(時点0から、カンマ区切り)を入力し、基準金利での株式価値と、金利変化後の資産・負債・株式それぞれの価値変化率を求めます。</p>
+      <div class="grid">
+        <div class="field full"><label>資産のCF流列(時点0から、カンマ区切り)</label><input type="text" id="i1r_asset" value="0,12,12,12,12,212" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;"></div>
+        <div class="field full"><label>負債のCF流列(時点0から、カンマ区切り)</label><input type="text" id="i1r_liab" value="0,6,6,106,0,0" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;"></div>
+        <div class="field"><label>基準金利</label><input type="number" id="i1r_r0" value="0.06" step="0.001"></div>
+        <div class="field"><label>変化後の金利</label><input type="number" id="i1r_r1" value="0.08" step="0.001"></div>
+      </div>
+      <button class="run" onclick="calcIr1()">計算する</button>
+      <div class="results" id="res-ir1">
+        <div class="result-row"><span class="label">株式価値(基準金利)</span><span class="value" id="i1r_out_e0"></span></div>
+        <div class="result-row"><span class="label">資産価値の変化率</span><span class="value" id="i1r_out_da"></span></div>
+        <div class="result-row"><span class="label">負債価値の変化率</span><span class="value" id="i1r_out_dl"></span></div>
+        <div class="result-row"><span class="label">株式価値の変化率</span><span class="value" id="i1r_out_de"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== IR2: 債券デュレーション ===== -->
+    <div class="type-panel" id="panel-ir2" style="display:none;">
+      <h2>金利リスク②③:債券デュレーション</h2>
+      <p class="desc">年数・額面・表面利率・利子率から、マコーレー・デュレーションと修正デュレーションを求め、指定した金利変化幅での価格変化率(近似式)を算出します。割引債は表面利率を0にしてください。1期間あたり利払いは1回を前提とします。</p>
+      <div class="grid">
+        <div class="field"><label>年数 N</label><input type="number" id="ir2_n" value="3"></div>
+        <div class="field"><label>額面</label><input type="number" id="ir2_face" value="100"></div>
+        <div class="field"><label>表面利率(割引債は0)</label><input type="number" id="ir2_coupon" value="0" step="0.001"></div>
+        <div class="field"><label>利子率(金利)</label><input type="number" id="ir2_y" value="0.05" step="0.001"></div>
+        <div class="field"><label>金利変化幅Δy</label><input type="number" id="ir2_dy" value="0.001" step="0.0001"></div>
+      </div>
+      <button class="run" onclick="calcIr2()">計算する</button>
+      <div class="results" id="res-ir2">
+        <div class="result-row"><span class="label">マコーレー・デュレーション</span><span class="value" id="ir2_out_d"></span></div>
+        <div class="result-row"><span class="label">修正デュレーション</span><span class="value" id="ir2_out_md"></span></div>
+        <div class="result-row"><span class="label">価格変化率(近似)</span><span class="value" id="ir2_out_chg"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== IR4: デュレーションギャップ ===== -->
+    <div class="type-panel" id="panel-ir4" style="display:none;">
+      <h2>金利リスク④:デュレーションギャップ・イミュナイゼーション</h2>
+      <p class="desc">資産項目A(現金など、デュレーション0を想定)・B・Cと、負債項目3つの市場価値・デュレーションを入力してください。資産・負債・株式のデュレーションと金利変化への感応度、株式価値を免疫化するための目標資産デュレーション、および資産項目Bまたは項目Cの売却(現金化)による調整額を算出します。</p>
+      <div class="grid">
+        <div class="field full"><label>資産項目A(現金・デュレーション0を想定): 名称・価値・デュレーション</label></div>
+        <div class="field"><input type="text" id="ir4_aName" value="現金"></div>
+        <div class="field"><input type="number" id="ir4_aV" value="30"></div>
+        <div class="field"><input type="number" id="ir4_aD" value="0"></div>
+        <div class="field full"><label>資産項目B: 名称・価値・デュレーション</label></div>
+        <div class="field"><input type="text" id="ir4_bName" value="オートローン"></div>
+        <div class="field"><input type="number" id="ir4_bV" value="210"></div>
+        <div class="field"><input type="number" id="ir4_bD" value="6"></div>
+        <div class="field full"><label>資産項目C: 名称・価値・デュレーション</label></div>
+        <div class="field"><input type="text" id="ir4_cName" value="住宅ローン"></div>
+        <div class="field"><input type="number" id="ir4_cV" value="360"></div>
+        <div class="field"><input type="number" id="ir4_cD" value="12"></div>
+        <div class="field full"><label>負債項目1・2・3: 価値・デュレーション</label></div>
+        <div class="field"><input type="number" id="ir4_l1V" value="280"></div>
+        <div class="field"><input type="number" id="ir4_l1D" value="0"></div>
+        <div class="field"><input type="number" id="ir4_l2V" value="168"></div>
+        <div class="field"><input type="number" id="ir4_l2D" value="3"></div>
+        <div class="field"><input type="number" id="ir4_l3V" value="112"></div>
+        <div class="field"><input type="number" id="ir4_l3D" value="18"></div>
+        <div class="field"><label>利子率(金利)</label><input type="number" id="ir4_y" value="0.05" step="0.001"></div>
+        <div class="field"><label>金利変化幅Δy</label><input type="number" id="ir4_dy" value="0.01" step="0.001"></div>
+      </div>
+      <button class="run" onclick="calcIr4()">計算する</button>
+      <div class="results" id="res-ir4">
+        <div class="result-row"><span class="label">資産のデュレーション</span><span class="value" id="ir4_out_da"></span></div>
+        <div class="result-row"><span class="label">資産価値の変化率</span><span class="value" id="ir4_out_pa"></span></div>
+        <div class="result-row"><span class="label">負債のデュレーション</span><span class="value" id="ir4_out_dl"></span></div>
+        <div class="result-row"><span class="label">負債価値の変化率</span><span class="value" id="ir4_out_pl"></span></div>
+        <div class="result-row"><span class="label">株式のデュレーション</span><span class="value" id="ir4_out_de"></span></div>
+        <div class="result-row"><span class="label">株式価値の変化率</span><span class="value" id="ir4_out_pe"></span></div>
+        <div class="result-row"><span class="label">免疫化に必要な目標資産デュレーション</span><span class="value" id="ir4_out_target"></span></div>
+      </div>
+
+      <p class="desc" style="margin-top:20px;">下記に項目B・Cそれぞれの売却額を入力してください。<b>片方だけ空欄</b>にするとその項目の必要売却額を自動計算します(両方空欄なら項目Cのみ売却するものとして計算)。</p>
+      <div class="grid">
+        <div class="field"><label>項目B売却額(空欄で自動計算)</label><input type="number" id="ir4_bSold" placeholder="空欄可"></div>
+        <div class="field"><label>項目C売却額(空欄で自動計算)</label><input type="number" id="ir4_cSold" placeholder="空欄可"></div>
+      </div>
+      <button class="run" onclick="calcIr4Sell()">売却額を計算する</button>
+      <div class="results" id="res-ir4sell">
+        <div class="result-row"><span class="label">項目B売却額</span><span class="value" id="ir4_out_bsold"></span></div>
+        <div class="result-row"><span class="label">項目C売却額</span><span class="value" id="ir4_out_csold"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Option 1: 二項モデル(1期間) ===== -->
+    <div class="type-panel" id="panel-opt1" style="display:none;">
+      <h2>金融オプション:二項モデル(1期間)</h2>
+      <p class="desc">1期間版の二項オプション評価モデルです。株価・上昇率u・下落率d・安全利子率r・行使価格Kから、満期日の株価・コール/プット価値、複製ポートフォリオ(x, B)、リスク中立確率、t=0でのヨーロピアン価値・時間価値、アメリカン・プット価値を算出します。</p>
+      <div class="grid">
+        <div class="field"><label>現在の株価 S</label><input type="number" id="op_s" value="55"></div>
+        <div class="field"><label>株価上昇率 u</label><input type="number" id="op_u" value="0.4" step="0.01"></div>
+        <div class="field"><label>株価下落率 d</label><input type="number" id="op_d" value="-0.4" step="0.01"></div>
+        <div class="field"><label>安全利子率 r</label><input type="number" id="op_r" value="0.08" step="0.001"></div>
+        <div class="field"><label>行使価格 K</label><input type="number" id="op_k" value="50"></div>
+      </div>
+      <button class="run" onclick="calcOpt1()">計算する</button>
+      <div class="results" id="res-opt1">
+        <div class="result-row"><span class="label">満期株価(状態u / d)</span><span class="value" id="op_out_s"></span></div>
+        <div class="result-row"><span class="label">コール価値(状態u / d)</span><span class="value" id="op_out_c"></span></div>
+        <div class="result-row"><span class="label">プット価値(状態u / d)</span><span class="value" id="op_out_p"></span></div>
+        <div class="result-row"><span class="label">コール複製:株式単位数 x</span><span class="value" id="op_out_xcall"></span></div>
+        <div class="result-row"><span class="label">コール複製:貸借額 B</span><span class="value" id="op_out_bcall"></span></div>
+        <div class="result-row"><span class="label">プット複製:株式単位数 x</span><span class="value" id="op_out_xput"></span></div>
+        <div class="result-row"><span class="label">プット複製:貸借額 B</span><span class="value" id="op_out_bput"></span></div>
+        <div class="result-row"><span class="label">リスク中立確率(状態u)</span><span class="value" id="op_out_p_rn"></span></div>
+        <div class="result-row"><span class="label">t=0 ヨーロピアン・コール価値</span><span class="value" id="op_out_c0"></span></div>
+        <div class="result-row"><span class="label">コールの時間価値</span><span class="value" id="op_out_ctv"></span></div>
+        <div class="result-row"><span class="label">t=0 ヨーロピアン・プット価値</span><span class="value" id="op_out_p0"></span></div>
+        <div class="result-row"><span class="label">プットの時間価値</span><span class="value" id="op_out_ptv"></span></div>
+        <div class="result-row"><span class="label">t=0 アメリカン・プット価値</span><span class="value" id="op_out_amerput"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== OptN: 二項モデル(N期間) ===== -->
+    <div class="type-panel" id="panel-optN" style="display:none;">
+      <h2>金融オプション:二項モデル(N期間)</h2>
+      <p class="desc">任意の期間数Nの二項木モデルです。t=0でのヨーロピアン/アメリカンのコール・プット価値に加え、任意の時点mと状態(m期間中のup回数j)における中間値も照会できます(例:t=1状態uはm=1,j=1。t=1状態dはm=1,j=0)。</p>
+      <div class="grid">
+        <div class="field"><label>現在の株価 S</label><input type="number" id="opn_s" value="200"></div>
+        <div class="field"><label>株価上昇率 u</label><input type="number" id="opn_u" value="0.2" step="0.01"></div>
+        <div class="field"><label>株価下落率 d</label><input type="number" id="opn_d" value="-0.2" step="0.01"></div>
+        <div class="field"><label>安全利子率 r</label><input type="number" id="opn_r" value="0.04" step="0.001"></div>
+        <div class="field"><label>行使価格 K</label><input type="number" id="opn_k" value="200"></div>
+        <div class="field"><label>期間数 N</label><input type="number" id="opn_n" value="2"></div>
+      </div>
+      <button class="run" onclick="calcOptN()">計算する</button>
+      <div class="results" id="res-optN">
+        <div class="result-row"><span class="label">リスク中立確率(状態u)</span><span class="value" id="opn_out_p"></span></div>
+        <div class="result-row"><span class="label">t=0 ヨーロピアン・コール価値</span><span class="value" id="opn_out_c0"></span></div>
+        <div class="result-row"><span class="label">t=0 ヨーロピアン・プット価値</span><span class="value" id="opn_out_p0"></span></div>
+        <div class="result-row"><span class="label">t=0 アメリカン・コール価値</span><span class="value" id="opn_out_amerc0"></span></div>
+        <div class="result-row"><span class="label">t=0 アメリカン・プット価値</span><span class="value" id="opn_out_amerp0"></span></div>
+      </div>
+
+      <p class="desc" style="margin-top:20px;">中間ノードの照会:経過期間mと、そのうちのup回数jを指定してください(0≤j≤m≤N)。</p>
+      <div class="grid">
+        <div class="field"><label>経過期間 m</label><input type="number" id="opn_m" value="1"></div>
+        <div class="field"><label>up回数 j (0≤j≤m)</label><input type="number" id="opn_j" value="1"></div>
+      </div>
+      <button class="run" onclick="calcOptNNode()">この時点・状態の値を照会する</button>
+      <div class="results" id="res-optNnode">
+        <div class="result-row"><span class="label">その時点・状態での株価</span><span class="value" id="opn_out_snode"></span></div>
+        <div class="result-row"><span class="label">ヨーロピアン・コール価値</span><span class="value" id="opn_out_cnode"></span></div>
+        <div class="result-row"><span class="label">ヨーロピアン・プット価値</span><span class="value" id="opn_out_pnode"></span></div>
+        <div class="result-row"><span class="label">アメリカン・コール価値</span><span class="value" id="opn_out_amercnode"></span></div>
+        <div class="result-row"><span class="label">アメリカン・プット価値</span><span class="value" id="opn_out_amerpnode"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== BS1: ブラック・ショールズ ===== -->
+    <div class="type-panel" id="panel-bs1" style="display:none;">
+      <h2>オプション評価:ブラック・ショールズ・モデル</h2>
+      <p class="desc">株価・行使価格・満期までの日数・ボラティリティ・安全利子率から、ヨーロピアンコール/プットオプションの価値を求めます(1年=365日として日数から期間Tを計算)。</p>
+      <div class="grid">
+        <div class="field"><label>現在の株価 S</label><input type="number" id="bs_s" value="1200"></div>
+        <div class="field"><label>行使価格 K</label><input type="number" id="bs_k" value="1200"></div>
+        <div class="field"><label>満期までの日数</label><input type="number" id="bs_days" value="180"></div>
+        <div class="field"><label>ボラティリティ σ</label><input type="number" id="bs_sigma" value="0.2" step="0.01"></div>
+        <div class="field"><label>安全利子率 r</label><input type="number" id="bs_r" value="0.05" step="0.001"></div>
+      </div>
+      <button class="run" onclick="calcBs1()">計算する</button>
+      <div class="results" id="res-bs1">
+        <div class="result-row"><span class="label">コールオプションの価値</span><span class="value" id="bs_out_call"></span></div>
+        <div class="result-row"><span class="label">プットオプションの価値</span><span class="value" id="bs_out_put"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== FX Hedge: 通貨オプションによる為替リスク管理 ===== -->
+    <div class="type-panel" id="panel-fxhedge" style="display:none;">
+      <h2>オプションによる為替リスク管理</h2>
+      <p class="desc">通貨オプション(プット/コール)を使って為替リスクをヘッジした場合の円建て利益を求めます。外貨の受取をヘッジする場合は「プット買い」、外貨の支払いをヘッジする場合は「コール買い」を選んでください。</p>
+      <div class="grid">
+        <div class="field full">
+          <label>ヘッジの種類</label>
+          <select id="fh_mode" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;">
+            <option value="put">プット買い(外貨の受取をヘッジ)</option>
+            <option value="call">コール買い(外貨の支払いをヘッジ)</option>
+          </select>
+        </div>
+        <div class="field"><label>6ヶ月後の為替レート(実勢レート)</label><input type="number" id="fh_spot" value="90"></div>
+        <div class="field"><label>オプションの行使価格</label><input type="number" id="fh_strike" value="110"></div>
+        <div class="field"><label>プレミアム(1ドルあたり)</label><input type="number" id="fh_premium" value="2"></div>
+        <div class="field"><label>想定元本(万ドル等)</label><input type="number" id="fh_amount" value="15"></div>
+        <div class="field"><label>その他の円建てキャッシュフロー(プット買い:原材料費など費用/コール買い:販売代金など収益)</label><input type="number" id="fh_other" value="1200"></div>
+      </div>
+      <button class="run" onclick="calcFxHedge()">計算する</button>
+      <div class="results" id="res-fxhedge">
+        <div class="result-row"><span class="label">オプションを行使するか</span><span class="value" id="fh_out_exercise"></span></div>
+        <div class="result-row"><span class="label">円建て利益</span><span class="value" id="fh_out_profit"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Real Option 1: 延期オプション ===== -->
+    <div class="type-panel" id="panel-realopt1" style="display:none;">
+      <h2>リアルオプション:延期オプション</h2>
+      <p class="desc">現在(t=0)の事業価値V0が1年後にu/dの二項的に変化するとき、投資(コール型)または売却(プット型)の意思決定を、即時実施と延期(オプション行使)のどちらが有利かで判定します。</p>
+      <div class="grid">
+        <div class="field full">
+          <label>意思決定の種類</label>
+          <select id="ro_mode" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;">
+            <option value="invest">投資延期(コール型):V0-費用の最大化</option>
+            <option value="sell">売却延期(プット型):売却額-V0の最大化</option>
+          </select>
+        </div>
+        <div class="field"><label>現在の事業価値 V0</label><input type="number" id="ro_v0" value="75"></div>
+        <div class="field"><label>上昇率 u</label><input type="number" id="ro_u" value="0.4" step="0.01"></div>
+        <div class="field"><label>下落率 d</label><input type="number" id="ro_d" value="-0.4" step="0.01"></div>
+        <div class="field"><label>安全利子率 r</label><input type="number" id="ro_r" value="0.08" step="0.001"></div>
+        <div class="field"><label>t=0の投資費用/売却額</label><input type="number" id="ro_x0" value="60"></div>
+        <div class="field"><label>t=1の投資費用/売却額</label><input type="number" id="ro_x1" value="60"></div>
+      </div>
+      <button class="run" onclick="calcRealOpt1()">計算する</button>
+      <div class="results" id="res-realopt1">
+        <div class="result-row"><span class="label">即時実施(t=0)のNPV</span><span class="value" id="ro_out_npv"></span></div>
+        <div class="result-row"><span class="label">延期オプションの価値</span><span class="value" id="ro_out_f0"></span></div>
+        <div class="result-row"><span class="label">実施すべき時点</span><span class="value" id="ro_out_decision"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== Real Option 2: 成長・撤退オプション ===== -->
+    <div class="type-panel" id="panel-realopt2" style="display:none;">
+      <h2>リアルオプション:成長・撤退オプション</h2>
+      <p class="desc">t=1以降に永久に生み出すキャッシュフローCF0が、u/dの二項的に変化する事業を想定します。投資費用Iとの比較で基本NPVを求め、t=1時点での拡張(成長)オプション・撤退オプションそれぞれの価値と、それらを含めた場合のNPVを算出します。</p>
+      <div class="grid">
+        <div class="field"><label>t=1以降の基準CF(永久)</label><input type="number" id="rg_cf0" value="5"></div>
+        <div class="field"><label>上昇率 u</label><input type="number" id="rg_u" value="0.8" step="0.01"></div>
+        <div class="field"><label>下落率 d</label><input type="number" id="rg_d" value="-0.6" step="0.01"></div>
+        <div class="field"><label>安全利子率 r</label><input type="number" id="rg_r" value="0.1" step="0.001"></div>
+        <div class="field"><label>t=0の投資費用 I(1単位あたり)</label><input type="number" id="rg_i" value="68"></div>
+        <div class="field"><label>拡張投資の1単位あたり費用</label><input type="number" id="rg_expandcost" value="68"></div>
+        <div class="field"><label>拡張可能な単位数</label><input type="number" id="rg_units" value="1"></div>
+      </div>
+      <button class="run" onclick="calcRealOpt2()">計算する</button>
+      <div class="results" id="res-realopt2">
+        <div class="result-row"><span class="label">V0 (=CF0/r)</span><span class="value" id="rg_out_v0"></span></div>
+        <div class="result-row"><span class="label">投資のNPV(オプションなし)</span><span class="value" id="rg_out_npvbase"></span></div>
+        <div class="result-row"><span class="label">撤退オプションの価値</span><span class="value" id="rg_out_abandon"></span></div>
+        <div class="result-row"><span class="label">NPV(撤退オプションのみ込み)</span><span class="value" id="rg_out_npvabandon"></span></div>
+        <div class="result-row"><span class="label">拡張(成長)オプションの価値</span><span class="value" id="rg_out_growth"></span></div>
+        <div class="result-row"><span class="label">NPV(拡張オプションのみ込み)</span><span class="value" id="rg_out_npvgrowth"></span></div>
+        <div class="result-row"><span class="label">NPV(撤退+拡張オプション両方込み)</span><span class="value" id="rg_out_npvboth"></span></div>
+      </div>
+    </div>
+
+    <!-- ===== M&A 1: シナジーとNPV ===== -->
+    <div class="type-panel" id="panel-ma1" style="display:none;">
+      <h2>合併・買収:シナジーとNPV</h2>
+      <p class="desc">A社によるB社の買収(現金買収を想定)について、シナジー価値・A社のNPV・買収発表直後の両社株価に加え、株式交換で買収する場合の新規発行株式数、B社株主への1株あたり最大プレミアムを算出します。金額は「単位」欄で指定した通貨換算(例:1億円=100000000)で入力してください。</p>
+      <div class="grid">
+        <div class="field"><label>A社の企業価値 V(A)</label><input type="number" id="ma_va" value="84"></div>
+        <div class="field"><label>A社の発行済み株式数</label><input type="number" id="ma_sharesA" value="2000000"></div>
+        <div class="field"><label>B社の企業価値 V(B)</label><input type="number" id="ma_vb" value="40"></div>
+        <div class="field"><label>B社の発行済み株式数</label><input type="number" id="ma_sharesB" value="2000000"></div>
+        <div class="field"><label>買収後の企業価値 V(AB)</label><input type="number" id="ma_vab" value="152"></div>
+        <div class="field"><label>B社の買収価格</label><input type="number" id="ma_price" value="52"></div>
+        <div class="field"><label>金額の単位(円換算)</label><input type="number" id="ma_scale" value="100000000"></div>
+      </div>
+      <button class="run" onclick="calcMa1()">計算する</button>
+      <div class="results" id="res-ma1">
+        <div class="result-row"><span class="label">シナジー価値</span><span class="value" id="ma_out_synergy"></span></div>
+        <div class="result-row"><span class="label">A社のNPV</span><span class="value" id="ma_out_npv"></span></div>
+        <div class="result-row"><span class="label">買収発表直後のA社株価</span><span class="value" id="ma_out_apricepost"></span></div>
+        <div class="result-row"><span class="label">買収発表直後のB社株価</span><span class="value" id="ma_out_bpricepost"></span></div>
+        <div class="result-row"><span class="label">株式交換の場合の新規発行株式数</span><span class="value" id="ma_out_newshares"></span></div>
+        <div class="result-row"><span class="label">1株あたり最大プレミアム</span><span class="value" id="ma_out_maxpremium"></span></div>
+      </div>
+    </div>
+
+  </div>
+  <p class="hint">小数点以下の丸めは表示上のみ行っています。厳密な値が必要な場合は内部計算(丸め前)を参照してください。</p>
+</div>
+
+<script>
+// ---- タブ切り替え ----
+document.querySelectorAll('.type-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const type = btn.dataset.type;
+    document.querySelectorAll('.type-panel').forEach(p=>p.style.display='none');
+    document.getElementById('panel-'+type).style.display='block';
+  });
+});
+
+function round2(x){
+  if(x < 0) return -round2(-x);
+  return Math.round((x + Number.EPSILON) * 100) / 100;
+}
+
+// ---- 資本構成① 計算 ----
+function calcCap1(){
+  const Su = parseFloat(document.getElementById('c1_su').value);
+  const Fa = parseFloat(document.getElementById('c1_fa').value);
+  const p  = parseFloat(document.getElementById('c1_p').value);
+  const r  = parseFloat(document.getElementById('c1_r').value);
+  const D  = parseFloat(document.getElementById('c1_D').value);
+  const cost = parseFloat(document.getElementById('c1_cost').value);
+
+  function payoff(CF){
+    if(CF >= D){
+      return { debt: D, equity: CF - D };
+    } else {
+      const avail = Math.max(CF - cost, 0);
+      return { debt: avail, equity: 0 };
+    }
+  }
+  const su = payoff(Su);
+  const fa = payoff(Fa);
+
+  const expDebt   = p*su.debt   + (1-p)*fa.debt;
+  const expEquity = p*su.equity + (1-p)*fa.equity;
+
+  const debtV   = expDebt / (1+r);
+  const equityV = expEquity / (1+r);
+  const firmV   = debtV + equityV;
+
+  document.getElementById('c1_out_e').textContent = round2(equityV);
+  document.getElementById('c1_out_d').textContent = round2(debtV);
+  document.getElementById('c1_out_v').textContent = round2(firmV);
+  document.getElementById('res-cap1').classList.add('show');
+
+  document.getElementById('c1_note').classList.toggle('show', Su < D && Su >= 0 ? false : false);
+}
+
+// ---- 資本構成② 計算(3変域を比較して真の最適解を求める) ----
+function calcCap2(){
+  const Su  = parseFloat(document.getElementById('c2_su').value);
+  const Fa  = parseFloat(document.getElementById('c2_fa').value);
+  const p   = parseFloat(document.getElementById('c2_p').value);
+  const r   = parseFloat(document.getElementById('c2_r').value);
+  const tau = parseFloat(document.getElementById('c2_tax').value);
+  const w   = parseFloat(document.getElementById('c2_w').value);
+
+  const candidates = [];
+
+  // 変域A: D <= Fa (両状態とも履行)。節税効果がDに単調増加 → 境界D=Faが最大
+  const DA = Fa;
+  const NA = (1-tau)*(p*Su + (1-p)*Fa) + tau*DA;
+  candidates.push({D:DA, N:NA, region:'A(両状態とも履行/境界)'});
+
+  // 変域B: Fa < D <= Su (失敗時のみ不履行)
+  const DcritB = (p*tau) / (2*(1-p)*w);
+  let DB;
+  if(DcritB > Fa && DcritB <= Su){
+    DB = DcritB; // 内点が極大
+  } else if(DcritB > Su){
+    DB = Su; // 変域内で単調増加 → 右端境界
+  } else {
+    DB = null; // 変域内で単調減少(Fa+側から下がる)→ 変域Aの境界に劣後するため候補から除外
+  }
+  if(DB !== null){
+    const NB = p*(Su*(1-tau) + tau*DB) + (1-p)*(Fa - w*DB*DB);
+    candidates.push({D:DB, N:NB, region: DcritB>Su ? 'B(単調増加/境界)' : 'B(失敗時のみ不履行/内点)'});
+  }
+
+  // 変域C: D > Su (両状態とも不履行)。Dについて単調減少 → 左端境界D=Suが最大
+  const DC = Su;
+  const NC = (p*Su + (1-p)*Fa) - w*DC*DC;
+  candidates.push({D:DC, N:NC, region:'C(両状態とも不履行/境界)'});
+
+  // 最大の候補を採用
+  candidates.sort((a,b)=>b.N-a.N);
+  const best = candidates[0];
+  const V = best.N / (1+r);
+
+  // 採用した変域に応じて負債の期待キャッシュフローを計算
+  let expDebt;
+  if(best.region.startsWith('A')){
+    expDebt = best.D; // 両状態とも履行 → 常にDを受け取る
+  } else if(best.region.startsWith('B')){
+    expDebt = p*best.D + (1-p)*(Fa - w*best.D*best.D);
+  } else {
+    expDebt = p*(Su - w*best.D*best.D) + (1-p)*(Fa - w*best.D*best.D);
+  }
+  const debtV = expDebt / (1+r);
+  const ratio = (debtV / V) * 100;
+
+  document.getElementById('c2_out_D').textContent = round2(best.D);
+  document.getElementById('c2_out_V').textContent = round2(V);
+  document.getElementById('c2_out_ratio').textContent = round2(ratio) + ' %';
+  document.getElementById('res-cap2').classList.add('show');
+
+  document.getElementById('c2_note').classList.remove('show');
+  document.getElementById('c2_note').textContent = '採用された変域: ' + best.region;
+  document.getElementById('c2_note').style.color = 'var(--sub)';
+  document.getElementById('c2_note').classList.add('show');
+}
+
+// ---- エージェンシー問題 共通ヘルパー ----
+function eqPay(CF,D){ return CF>=D ? CF-D : 0; }   // 株式の受取(財務危機費用なし)
+function dtPay(CF,D){ return CF>=D ? D : CF; }     // 負債の受取(財務危機費用なし)
+
+function bisectZero(f, lo, hi, iters=80){
+  let flo = f(lo);
+  for(let i=0;i<iters;i++){
+    const mid = (lo+hi)/2;
+    const fmid = f(mid);
+    if((flo>=0) === (fmid>=0)){ lo=mid; flo=fmid; } else { hi=mid; }
+  }
+  return (lo+hi)/2;
+}
+
+// ---- エージェンシー① 過小投資 ----
+function calcAg1(){
+  const Su=parseFloat(document.getElementById('a1_su').value);
+  const Fa=parseFloat(document.getElementById('a1_fa').value);
+  const iSu=parseFloat(document.getElementById('a1_isu').value);
+  const iFa=parseFloat(document.getElementById('a1_ifa').value);
+  const I=parseFloat(document.getElementById('a1_cost').value);
+  const D=parseFloat(document.getElementById('a1_D').value);
+  const p=parseFloat(document.getElementById('a1_p').value);
+  const r=parseFloat(document.getElementById('a1_r').value);
+
+  const eq0 = (p*eqPay(Su,D)+(1-p)*eqPay(Fa,D))/(1+r);
+  const dt0 = (p*dtPay(Su,D)+(1-p)*dtPay(Fa,D))/(1+r);
+  const TSu=Su+iSu, TFa=Fa+iFa;
+  const eq1 = (p*eqPay(TSu,D)+(1-p)*eqPay(TFa,D))/(1+r) - I;
+  const dt1 = (p*dtPay(TSu,D)+(1-p)*dtPay(TFa,D))/(1+r);
+
+  const dEq=eq1-eq0, dDt=dt1-dt0, dFirm=dEq+dDt;
+
+  const f=(x)=>{
+    const e0=(p*eqPay(Su,x)+(1-p)*eqPay(Fa,x))/(1+r);
+    const e1=(p*eqPay(TSu,x)+(1-p)*eqPay(TFa,x))/(1+r)-I;
+    return e1-e0;
+  };
+  const threshold = bisectZero(f, 0, TSu+1000);
+
+  document.getElementById('a1_out_e').textContent = round2(dEq);
+  document.getElementById('a1_out_d').textContent = round2(dDt);
+  document.getElementById('a1_out_v').textContent = round2(dFirm);
+  document.getElementById('a1_out_th').textContent = round2(threshold);
+  document.getElementById('res-ag1').classList.add('show');
+}
+
+// ---- エージェンシー② 資産剥ぎ取り ----
+function calcAg2(){
+  const Su=parseFloat(document.getElementById('a2_su').value);
+  const Fa=parseFloat(document.getElementById('a2_fa').value);
+  const dSu=parseFloat(document.getElementById('a2_dsu').value);
+  const dFa=parseFloat(document.getElementById('a2_dfa').value);
+  const proceeds=parseFloat(document.getElementById('a2_proceeds').value);
+  const D=parseFloat(document.getElementById('a2_D').value);
+  const p=parseFloat(document.getElementById('a2_p').value);
+  const r=parseFloat(document.getElementById('a2_r').value);
+
+  const eq0 = (p*eqPay(Su,D)+(1-p)*eqPay(Fa,D))/(1+r);
+  const dt0 = (p*dtPay(Su,D)+(1-p)*dtPay(Fa,D))/(1+r);
+  const TSu=Su+dSu, TFa=Fa+dFa;
+  const eq1 = (p*eqPay(TSu,D)+(1-p)*eqPay(TFa,D))/(1+r) + proceeds;
+  const dt1 = (p*dtPay(TSu,D)+(1-p)*dtPay(TFa,D))/(1+r);
+
+  const dEq=eq1-eq0, dDt=dt1-dt0, dFirm=dEq+dDt;
+
+  const f=(x)=>{
+    const e0=(p*eqPay(Su,x)+(1-p)*eqPay(Fa,x))/(1+r);
+    const e1=(p*eqPay(TSu,x)+(1-p)*eqPay(TFa,x))/(1+r)+proceeds;
+    return e1-e0;
+  };
+  const threshold = bisectZero(f, 0, Su+1000);
+
+  document.getElementById('a2_out_e').textContent = round2(dEq);
+  document.getElementById('a2_out_d').textContent = round2(dDt);
+  document.getElementById('a2_out_v').textContent = round2(dFirm);
+  document.getElementById('a2_out_th').textContent = round2(threshold);
+  document.getElementById('res-ag2').classList.add('show');
+}
+
+// ---- エージェンシー③ リスクシフティング ----
+function calcAg3(){
+  const SuL=parseFloat(document.getElementById('a3_lsu').value);
+  const FaL=parseFloat(document.getElementById('a3_lfa').value);
+  const SuH=parseFloat(document.getElementById('a3_hsu').value);
+  const FaH=parseFloat(document.getElementById('a3_hfa').value);
+  const D=parseFloat(document.getElementById('a3_D').value);
+  const p=parseFloat(document.getElementById('a3_p').value);
+  const r=parseFloat(document.getElementById('a3_r').value);
+
+  const eqL = (p*eqPay(SuL,D)+(1-p)*eqPay(FaL,D))/(1+r);
+  const eqH = (p*eqPay(SuH,D)+(1-p)*eqPay(FaH,D))/(1+r);
+  const chosen = eqL>=eqH ? 'L' : 'H';
+  const SuC = chosen==='L' ? SuL : SuH;
+  const FaC = chosen==='L' ? FaL : FaH;
+  const firmV = (p*SuC+(1-p)*FaC)/(1+r);
+
+  const f=(x)=>{
+    const eL=(p*eqPay(SuL,x)+(1-p)*eqPay(FaL,x))/(1+r);
+    const eH=(p*eqPay(SuH,x)+(1-p)*eqPay(FaH,x))/(1+r);
+    return eL-eH;
+  };
+  const hi = Math.min(SuL,SuH); // 両戦略とも成功時に履行しうる範囲に限定(退化領域を除外)
+  const threshold = bisectZero(f, 0, hi);
+
+  document.getElementById('a3_out_eqL').textContent = round2(eqL);
+  document.getElementById('a3_out_eqH').textContent = round2(eqH);
+  document.getElementById('a3_out_chosen').textContent = chosen + '(戦略' + chosen + ')';
+  document.getElementById('a3_out_v').textContent = round2(firmV);
+  document.getElementById('a3_out_th').textContent = round2(threshold);
+  document.getElementById('res-ag3').classList.add('show');
+}
+
+// ---- エージェンシー④ モラルハザード(無借金) ----
+function calcAg4(){
+  const Su=parseFloat(document.getElementById('a4_su').value);
+  const Fa=parseFloat(document.getElementById('a4_fa').value);
+  const p0=parseFloat(document.getElementById('a4_p0').value);
+  const p1=parseFloat(document.getElementById('a4_p1').value);
+  const cost=parseFloat(document.getElementById('a4_cost').value);
+  const r=parseFloat(document.getElementById('a4_r').value);
+  const stake=parseFloat(document.getElementById('a4_stake').value);
+
+  const V0=(p0*Su+(1-p0)*Fa)/(1+r);
+  const V1=(p1*Su+(1-p1)*Fa)/(1+r);
+  const dV=V1-V0;
+  const dManager=stake*dV-cost;
+  const minStake=(cost/dV)*100;
+
+  document.getElementById('a4_out_v').textContent = round2(dV);
+  document.getElementById('a4_out_m').textContent = round2(dManager);
+  document.getElementById('a4_out_stake').textContent = round2(minStake) + ' %';
+  document.getElementById('res-ag4').classList.add('show');
+}
+
+// ---- エージェンシー⑤ 規律付け効果(2期間・解雇リスク) ----
+function ag5TotalComp(p, CFt1su,CFt1fa,CFt2su,CFt2fa, ct1su,ct1fa,ct2su,ct2fa, D, maturity, r){
+  if(maturity==='t2'){
+    const e1=p*ct1su+(1-p)*ct1fa;
+    const e2=p*ct2su+(1-p)*ct2fa;
+    return e1/(1+r) + e2/Math.pow(1+r,2);
+  } else {
+    const defaultSu = (CFt1su-ct1su) < D;
+    const defaultFa = (CFt1fa-ct1fa) < D;
+    const e2 = p*ct2su+(1-p)*ct2fa;
+    const contribSu = defaultSu ? (ct1su/(1+r)) : (ct1su/(1+r) + e2/Math.pow(1+r,2));
+    const contribFa = defaultFa ? (ct1fa/(1+r)) : (ct1fa/(1+r) + e2/Math.pow(1+r,2));
+    return p*contribSu + (1-p)*contribFa;
+  }
+}
+function calcAg5(){
+  const CFt1su=parseFloat(document.getElementById('a5_t1su').value);
+  const CFt1fa=parseFloat(document.getElementById('a5_t1fa').value);
+  const CFt2su=parseFloat(document.getElementById('a5_t2su').value);
+  const CFt2fa=parseFloat(document.getElementById('a5_t2fa').value);
+  const ct1su=parseFloat(document.getElementById('a5_c1su').value);
+  const ct1fa=parseFloat(document.getElementById('a5_c1fa').value);
+  const ct2su=parseFloat(document.getElementById('a5_c2su').value);
+  const ct2fa=parseFloat(document.getElementById('a5_c2fa').value);
+  const p0=parseFloat(document.getElementById('a5_p0').value);
+  const p1=parseFloat(document.getElementById('a5_p1').value);
+  const cost=parseFloat(document.getElementById('a5_cost').value);
+  const D=parseFloat(document.getElementById('a5_D').value);
+  const maturity=document.getElementById('a5_maturity').value;
+  const r=parseFloat(document.getElementById('a5_r').value);
+
+  const T0=ag5TotalComp(p0,CFt1su,CFt1fa,CFt2su,CFt2fa,ct1su,ct1fa,ct2su,ct2fa,D,maturity,r);
+  const T1=ag5TotalComp(p1,CFt1su,CFt1fa,CFt2su,CFt2fa,ct1su,ct1fa,ct2su,ct2fa,D,maturity,r);
+  const diff=T1-T0;
+  const net=diff-cost;
+
+  document.getElementById('a5_out_diff').textContent = round2(diff);
+  document.getElementById('a5_out_net').textContent = round2(net);
+  document.getElementById('res-ag5').classList.add('show');
+}
+
+// ---- 情報の非対称性① モラルハザードと株価 ----
+function calcInfo1(){
+  const Su=parseFloat(document.getElementById('i1_su').value);
+  const Fa=parseFloat(document.getElementById('i1_fa').value);
+  const p0=parseFloat(document.getElementById('i1_p0').value);
+  const p1=parseFloat(document.getElementById('i1_p1').value);
+  const cost=parseFloat(document.getElementById('i1_cost').value);
+  const r=parseFloat(document.getElementById('i1_r').value);
+  const shares=parseFloat(document.getElementById('i1_shares').value);
+  const stake=parseFloat(document.getElementById('i1_stake').value);
+
+  const V0=(p0*Su+(1-p0)*Fa)/(1+r);
+  const V1=(p1*Su+(1-p1)*Fa)/(1+r);
+  const dV=V1-V0;
+  const willEffort = stake*dV >= cost;
+  const V = willEffort ? V1 : V0;
+  const price = V/shares;
+  const minStakeRatio = cost/dV;
+  const minShares = minStakeRatio*shares;
+
+  document.getElementById('i1_out_effort').textContent = willEffort ? '努力する' : '努力しない';
+  document.getElementById('i1_out_price').textContent = round2(price);
+  document.getElementById('i1_out_shares').textContent = round2(minShares) + ' 株以上';
+  document.getElementById('res-info1').classList.add('show');
+}
+
+// ---- 情報の非対称性②③ Myers-Majluf ----
+function miInfoDecide(A,V,C,P,N,scale){
+  const newShares = C*scale/P;
+  const retained = N/(N+newShares);
+  const valueIfIssue = retained*(A+V)*scale/scale; // in original units
+  const valueIfNot = A;
+  return { issue: valueIfIssue > valueIfNot, valueIfIssue, valueIfNot };
+}
+function calcInfo2(){
+  const A1=parseFloat(document.getElementById('i2_a1').value);
+  const V1=parseFloat(document.getElementById('i2_v1').value);
+  const C1=parseFloat(document.getElementById('i2_c1').value);
+  const p1=parseFloat(document.getElementById('i2_p1').value);
+  const A2=parseFloat(document.getElementById('i2_a2').value);
+  const V2=parseFloat(document.getElementById('i2_v2').value);
+  const C2=parseFloat(document.getElementById('i2_c2').value);
+  const p2=parseFloat(document.getElementById('i2_p2').value);
+  const N=parseFloat(document.getElementById('i2_shares').value);
+  const scale=parseFloat(document.getElementById('i2_scale').value);
+
+  const preP = (p1*A1+p2*A2)*scale/N;
+
+  // プール価格を反復法で求める(投資費用が状態間で異なっても対応)
+  let poolP = ((p1*(A1+V1)+p2*(A2+V2)) - (p1*C1+p2*C2))*scale/N;
+  for(let i=0;i<200;i++){
+    const ns1 = C1*scale/poolP, ns2 = C2*scale/poolP;
+    const ret1 = N/(N+ns1), ret2 = N/(N+ns2);
+    const rhs = p1*ret1*(A1+V1)*scale + p2*ret2*(A2+V2)*scale;
+    poolP = rhs/N;
+  }
+
+  const d1 = miInfoDecide(A1,V1,C1,poolP,N,scale);
+  const d2 = miInfoDecide(A2,V2,C2,poolP,N,scale);
+
+  let finalPrice, note;
+  if(d1.issue && d2.issue){
+    finalPrice = poolP;
+    note = '両方の情報のもとで実施が選ばれるため、プール均衡が成立します(公表直後の株価のまま)。';
+  } else {
+    const comb1=A1+V1, comb2=A2+V2;
+    const lowIsState1 = comb1 < comb2;
+    const lowA=lowIsState1?A1:A2, lowV=lowIsState1?V1:V2, lowC=lowIsState1?C1:C2;
+    const sepPrice = (lowA+lowV-lowC)*scale/N;
+    const dsep = miInfoDecide(lowA,lowV,lowC,sepPrice,N,scale);
+    finalPrice = sepPrice;
+    if(dsep.issue){
+      note = (lowIsState1?'可能性1':'可能性2')+'のみが実施を選ぶ分離均衡が成立し、その情報が価格に織り込まれます。';
+    } else {
+      note = 'プール価格では一方の情報だけが実施を望みますが、その情報が正しく織り込まれた価格のもとでは実施を望まなくなるため、結果としてどちらの情報でも実施されません(正または負のNPVの投資が実施/非実施となる非効率が生じる可能性があります)。表示価格は公表時に市場が想定する理論値です。';
+    }
+  }
+
+  document.getElementById('i2_out_pre').textContent = round2(preP);
+  document.getElementById('i2_out_pool').textContent = round2(poolP);
+  document.getElementById('i2_out_d1').textContent = d1.issue ? '実施する' : '実施しない';
+  document.getElementById('i2_out_d2').textContent = d2.issue ? '実施する' : '実施しない';
+  document.getElementById('i2_out_final').textContent = round2(finalPrice);
+  document.getElementById('i2_note').textContent = note;
+  document.getElementById('res-info2').classList.add('show');
+}
+
+// ---- 先渡契約:為替予約による円建て利益 ----
+function calcFx1(){
+  const amount=parseFloat(document.getElementById('fx1_amount').value);
+  const rate=parseFloat(document.getElementById('fx1_rate').value);
+  const cost=parseFloat(document.getElementById('fx1_cost').value);
+  const profit = amount*rate - cost;
+  document.getElementById('fx1_out').textContent = round2(profit);
+  document.getElementById('res-fx1').classList.add('show');
+}
+
+// ---- 先物① 値洗い損益・差金決済 ----
+function calcFut1(){
+  const prices = document.getElementById('f1_prices').value.split(',').map(s=>parseFloat(s.trim()));
+  const pos = document.getElementById('f1_pos').value; // buy/sell
+  const entry = parseInt(document.getElementById('f1_entry').value);
+  const mode = document.getElementById('f1_mode').value; // mtm/settle
+  const target = parseInt(document.getElementById('f1_target').value);
+  const sign = pos==='buy' ? 1 : -1;
+
+  let diff;
+  if(mode==='mtm'){
+    diff = prices[target] - prices[target-1];
+  } else {
+    diff = prices[target] - prices[entry];
+  }
+  const pnl = sign*diff;
+  document.getElementById('f1_out').textContent = round2(pnl);
+  document.getElementById('res-fut1').classList.add('show');
+}
+
+// ---- 先物② 無裁定価格 ----
+function toggleFut2Mode(){
+  const mode = document.getElementById('f2_mode').value;
+  document.getElementById('f2_storage_fields').style.display = mode==='storage' ? 'grid' : 'none';
+  document.getElementById('f2_dividend_fields').style.display = mode==='dividend' ? 'grid' : 'none';
+}
+function calcFut2(){
+  const mode = document.getElementById('f2_mode').value;
+  let price;
+  if(mode==='storage'){
+    const spot=parseFloat(document.getElementById('f2s_spot').value);
+    const r=parseFloat(document.getElementById('f2s_r').value);
+    const storage=parseFloat(document.getElementById('f2s_storage').value);
+    const benefit=parseFloat(document.getElementById('f2s_benefit').value);
+    price = spot*(1+r) + storage - benefit;
+  } else {
+    const spot=parseFloat(document.getElementById('f2d_spot').value);
+    const r=parseFloat(document.getElementById('f2d_r').value);
+    const q=parseFloat(document.getElementById('f2d_q').value);
+    const T=parseFloat(document.getElementById('f2d_T').value);
+    price = spot*Math.exp((r-q)*T);
+  }
+  document.getElementById('f2_out').textContent = round2(price);
+  document.getElementById('res-fut2').classList.add('show');
+}
+
+// ---- 金利リスク① CF流列の金利感応度 ----
+function pvCF(cfs, r){
+  let s=0;
+  for(let t=0;t<cfs.length;t++){ s += cfs[t]/Math.pow(1+r,t); }
+  return s;
+}
+function calcIr1(){
+  const asset = document.getElementById('i1r_asset').value.split(',').map(s=>parseFloat(s.trim()));
+  const liab = document.getElementById('i1r_liab').value.split(',').map(s=>parseFloat(s.trim()));
+  const r0=parseFloat(document.getElementById('i1r_r0').value);
+  const r1=parseFloat(document.getElementById('i1r_r1').value);
+
+  const A0=pvCF(asset,r0), L0=pvCF(liab,r0), E0=A0-L0;
+  const A1=pvCF(asset,r1), L1=pvCF(liab,r1), E1=A1-L1;
+
+  document.getElementById('i1r_out_e0').textContent = round2(E0);
+  document.getElementById('i1r_out_da').textContent = round2((A1-A0)/A0*100)+' %';
+  document.getElementById('i1r_out_dl').textContent = round2((L1-L0)/L0*100)+' %';
+  document.getElementById('i1r_out_de').textContent = round2((E1-E0)/E0*100)+' %';
+  document.getElementById('res-ir1').classList.add('show');
+}
+
+// ---- 金利リスク②③ 債券デュレーション ----
+function bondCF(N, face, couponRate){
+  const coupon = face*couponRate;
+  const cf=[0];
+  for(let t=1;t<N;t++) cf.push(coupon);
+  cf.push(coupon+face);
+  return cf;
+}
+function bondPrice(cf,y){
+  let s=0;
+  for(let t=0;t<cf.length;t++) s+=cf[t]/Math.pow(1+y,t);
+  return s;
+}
+function macaulayDur(cf,y){
+  const P=bondPrice(cf,y);
+  let s=0;
+  for(let t=0;t<cf.length;t++) s+=t*cf[t]/Math.pow(1+y,t);
+  return s/P;
+}
+function calcIr2(){
+  const N=parseInt(document.getElementById('ir2_n').value);
+  const face=parseFloat(document.getElementById('ir2_face').value);
+  const coupon=parseFloat(document.getElementById('ir2_coupon').value);
+  const y=parseFloat(document.getElementById('ir2_y').value);
+  const dy=parseFloat(document.getElementById('ir2_dy').value);
+
+  const cf=bondCF(N,face,coupon);
+  const D=macaulayDur(cf,y);
+  const modD=D/(1+y);
+  const chgPct = -modD*dy*100;
+
+  document.getElementById('ir2_out_d').textContent = round2(D);
+  document.getElementById('ir2_out_md').textContent = round2(modD);
+  document.getElementById('ir2_out_chg').textContent = round2(chgPct)+' %';
+  document.getElementById('res-ir2').classList.add('show');
+}
+
+// ---- 金利リスク④ デュレーションギャップ ----
+function ir4Read(){
+  const aV=parseFloat(document.getElementById('ir4_aV').value), aD=parseFloat(document.getElementById('ir4_aD').value);
+  const bV=parseFloat(document.getElementById('ir4_bV').value), bD=parseFloat(document.getElementById('ir4_bD').value);
+  const cV=parseFloat(document.getElementById('ir4_cV').value), cD=parseFloat(document.getElementById('ir4_cD').value);
+  const l1V=parseFloat(document.getElementById('ir4_l1V').value), l1D=parseFloat(document.getElementById('ir4_l1D').value);
+  const l2V=parseFloat(document.getElementById('ir4_l2V').value), l2D=parseFloat(document.getElementById('ir4_l2D').value);
+  const l3V=parseFloat(document.getElementById('ir4_l3V').value), l3D=parseFloat(document.getElementById('ir4_l3D').value);
+  const y=parseFloat(document.getElementById('ir4_y').value);
+  const dy=parseFloat(document.getElementById('ir4_dy').value);
+  const A=aV+bV+cV, L=l1V+l2V+l3V, E=A-L;
+  const DA=(aV*aD+bV*bD+cV*cD)/A;
+  const DL=(l1V*l1D+l2V*l2D+l3V*l3D)/L;
+  return {aV,aD,bV,bD,cV,cD,l1V,l1D,l2V,l2D,l3V,l3D,y,dy,A,L,E,DA,DL};
+}
+function calcIr4(){
+  const s = ir4Read();
+  const pctA = -s.DA/(1+s.y)*s.dy*100;
+  const pctL = -s.DL/(1+s.y)*s.dy*100;
+  const dA = s.A*pctA/100, dL = s.L*pctL/100;
+  const dE = dA-dL;
+  const pctE = dE/s.E*100;
+  const DE = (s.DA*s.A - s.DL*s.L)/s.E;
+  const targetDA = (s.DL*s.L)/s.A;
+
+  document.getElementById('ir4_out_da').textContent = round2(s.DA);
+  document.getElementById('ir4_out_pa').textContent = round2(pctA)+' %';
+  document.getElementById('ir4_out_dl').textContent = round2(s.DL);
+  document.getElementById('ir4_out_pl').textContent = round2(pctL)+' %';
+  document.getElementById('ir4_out_de').textContent = round2(DE);
+  document.getElementById('ir4_out_pe').textContent = round2(pctE)+' %';
+  document.getElementById('ir4_out_target').textContent = round2(targetDA);
+  document.getElementById('res-ir4').classList.add('show');
+}
+function calcIr4Sell(){
+  const s = ir4Read();
+  const targetDA = (s.DL*s.L)/s.A;
+  const bSoldInput = document.getElementById('ir4_bSold').value;
+  const cSoldInput = document.getElementById('ir4_cSold').value;
+  let bSold, cSold;
+
+  if(bSoldInput==='' && cSoldInput===''){
+    // デフォルト: 項目Cのみ売却(項目Bは0固定)
+    bSold = 0;
+    cSold = s.cV - (targetDA*s.A - (s.bV-bSold)*s.bD)/s.cD;
+  } else if(bSoldInput==='' ){
+    cSold = parseFloat(cSoldInput);
+    bSold = s.bV - (targetDA*s.A - (s.cV-cSold)*s.cD)/s.bD;
+  } else if(cSoldInput===''){
+    bSold = parseFloat(bSoldInput);
+    cSold = s.cV - (targetDA*s.A - (s.bV-bSold)*s.bD)/s.cD;
+  } else {
+    bSold = parseFloat(bSoldInput);
+    cSold = parseFloat(cSoldInput);
+  }
+
+  document.getElementById('ir4_out_bsold').textContent = round2(bSold);
+  document.getElementById('ir4_out_csold').textContent = round2(cSold);
+  document.getElementById('res-ir4sell').classList.add('show');
+}
+
+// ---- 金融オプション:二項モデル(1期間) ----
+function calcOpt1(){
+  const S=parseFloat(document.getElementById('op_s').value);
+  const u=parseFloat(document.getElementById('op_u').value);
+  const d=parseFloat(document.getElementById('op_d').value);
+  const r=parseFloat(document.getElementById('op_r').value);
+  const K=parseFloat(document.getElementById('op_k').value);
+
+  const Su=S*(1+u), Sd=S*(1+d);
+  const Cu=Math.max(Su-K,0), Cd=Math.max(Sd-K,0);
+  const Pu=Math.max(K-Su,0), Pd=Math.max(K-Sd,0);
+
+  const xCall=(Cu-Cd)/(Su-Sd);
+  const BCall=(Cd-xCall*Sd)/(1+r);
+  const xPut=(Pu-Pd)/(Su-Sd);
+  const BPut=(Pd-xPut*Sd)/(1+r);
+
+  const pRN=(r-d)/(u-d);
+
+  const C0=(pRN*Cu+(1-pRN)*Cd)/(1+r);
+  const P0=(pRN*Pu+(1-pRN)*Pd)/(1+r);
+  const callTV=C0-Math.max(S-K,0);
+  const putTV=P0-Math.max(K-S,0);
+  const amerPut=Math.max(K-S, P0);
+
+  document.getElementById('op_out_s').textContent = round2(Su)+' / '+round2(Sd);
+  document.getElementById('op_out_c').textContent = round2(Cu)+' / '+round2(Cd);
+  document.getElementById('op_out_p').textContent = round2(Pu)+' / '+round2(Pd);
+  document.getElementById('op_out_xcall').textContent = round2(xCall);
+  document.getElementById('op_out_bcall').textContent = round2(BCall);
+  document.getElementById('op_out_xput').textContent = round2(xPut);
+  document.getElementById('op_out_bput').textContent = round2(BPut);
+  document.getElementById('op_out_p_rn').textContent = round2(pRN*100)+' %';
+  document.getElementById('op_out_c0').textContent = round2(C0);
+  document.getElementById('op_out_ctv').textContent = round2(callTV);
+  document.getElementById('op_out_p0').textContent = round2(P0);
+  document.getElementById('op_out_ptv').textContent = round2(putTV);
+  document.getElementById('op_out_amerput').textContent = round2(amerPut);
+  document.getElementById('res-opt1').classList.add('show');
+}
+
+// ---- 金融オプション:二項モデル(N期間) ----
+let optNTreeCache = null;
+function buildOptTree(S,u,d,r,K,N){
+  const p=(r-d)/(u-d);
+  const stock=[], euroC=[], euroP=[], amerC=[], amerP=[];
+  for(let m=0;m<=N;m++){ stock.push(new Array(m+1)); euroC.push(new Array(m+1)); euroP.push(new Array(m+1)); amerC.push(new Array(m+1)); amerP.push(new Array(m+1)); }
+  for(let j=0;j<=N;j++) stock[N][j]=S*Math.pow(1+u,j)*Math.pow(1+d,N-j);
+  for(let j=0;j<=N;j++){
+    euroC[N][j]=Math.max(stock[N][j]-K,0);
+    euroP[N][j]=Math.max(K-stock[N][j],0);
+    amerC[N][j]=euroC[N][j];
+    amerP[N][j]=euroP[N][j];
+  }
+  for(let m=N-1;m>=0;m--){
+    for(let j=0;j<=m;j++){
+      stock[m][j]=S*Math.pow(1+u,j)*Math.pow(1+d,m-j);
+      const contC=(p*euroC[m+1][j+1]+(1-p)*euroC[m+1][j])/(1+r);
+      const contP=(p*euroP[m+1][j+1]+(1-p)*euroP[m+1][j])/(1+r);
+      euroC[m][j]=contC; euroP[m][j]=contP;
+      const contAC=(p*amerC[m+1][j+1]+(1-p)*amerC[m+1][j])/(1+r);
+      const contAP=(p*amerP[m+1][j+1]+(1-p)*amerP[m+1][j])/(1+r);
+      amerC[m][j]=Math.max(stock[m][j]-K,0,contAC);
+      amerP[m][j]=Math.max(K-stock[m][j],0,contAP);
+    }
+  }
+  return {p,stock,euroC,euroP,amerC,amerP,N};
+}
+function calcOptN(){
+  const S=parseFloat(document.getElementById('opn_s').value);
+  const u=parseFloat(document.getElementById('opn_u').value);
+  const d=parseFloat(document.getElementById('opn_d').value);
+  const r=parseFloat(document.getElementById('opn_r').value);
+  const K=parseFloat(document.getElementById('opn_k').value);
+  const N=parseInt(document.getElementById('opn_n').value);
+
+  optNTreeCache = buildOptTree(S,u,d,r,K,N);
+
+  document.getElementById('opn_out_p').textContent = round2(optNTreeCache.p*100)+' %';
+  document.getElementById('opn_out_c0').textContent = round2(optNTreeCache.euroC[0][0]);
+  document.getElementById('opn_out_p0').textContent = round2(optNTreeCache.euroP[0][0]);
+  document.getElementById('opn_out_amerc0').textContent = round2(optNTreeCache.amerC[0][0]);
+  document.getElementById('opn_out_amerp0').textContent = round2(optNTreeCache.amerP[0][0]);
+  document.getElementById('res-optN').classList.add('show');
+}
+function calcOptNNode(){
+  if(!optNTreeCache){ calcOptN(); }
+  const m=parseInt(document.getElementById('opn_m').value);
+  const j=parseInt(document.getElementById('opn_j').value);
+  const t=optNTreeCache;
+  if(m<0||m>t.N||j<0||j>m){
+    document.getElementById('opn_out_snode').textContent='入力範囲外(0≤j≤m≤N)';
+    document.getElementById('res-optNnode').classList.add('show');
+    return;
+  }
+  document.getElementById('opn_out_snode').textContent = round2(t.stock[m][j]);
+  document.getElementById('opn_out_cnode').textContent = round2(t.euroC[m][j]);
+  document.getElementById('opn_out_pnode').textContent = round2(t.euroP[m][j]);
+  document.getElementById('opn_out_amercnode').textContent = round2(t.amerC[m][j]);
+  document.getElementById('opn_out_amerpnode').textContent = round2(t.amerP[m][j]);
+  document.getElementById('res-optNnode').classList.add('show');
+}
+
+// ---- ブラック・ショールズ・モデル ----
+function normCDF(x){
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const sign = x<0?-1:1;
+  const ax=Math.abs(x)/Math.sqrt(2);
+  const t=1/(1+p*ax);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-ax*ax);
+  return 0.5*(1+sign*y);
+}
+function calcBs1(){
+  const S=parseFloat(document.getElementById('bs_s').value);
+  const K=parseFloat(document.getElementById('bs_k').value);
+  const days=parseFloat(document.getElementById('bs_days').value);
+  const sigma=parseFloat(document.getElementById('bs_sigma').value);
+  const r=parseFloat(document.getElementById('bs_r').value);
+  const T=days/365;
+
+  const d1=(Math.log(S/K)+(r+sigma*sigma/2)*T)/(sigma*Math.sqrt(T));
+  const d2=d1-sigma*Math.sqrt(T);
+  const call=S*normCDF(d1)-K*Math.exp(-r*T)*normCDF(d2);
+  const put=K*Math.exp(-r*T)*normCDF(-d2)-S*normCDF(-d1);
+
+  document.getElementById('bs_out_call').textContent = round2(call);
+  document.getElementById('bs_out_put').textContent = round2(put);
+  document.getElementById('res-bs1').classList.add('show');
+}
+
+// ---- 通貨オプションによる為替リスク管理 ----
+function calcFxHedge(){
+  const mode=document.getElementById('fh_mode').value;
+  const spot=parseFloat(document.getElementById('fh_spot').value);
+  const strike=parseFloat(document.getElementById('fh_strike').value);
+  const premium=parseFloat(document.getElementById('fh_premium').value);
+  const amount=parseFloat(document.getElementById('fh_amount').value);
+  const other=parseFloat(document.getElementById('fh_other').value);
+
+  const totalPremium = amount*premium;
+  let exercise, profit;
+  if(mode==='put'){
+    exercise = spot < strike;
+    const revenue = exercise ? amount*strike : amount*spot;
+    profit = revenue - other - totalPremium;
+  } else {
+    exercise = spot > strike;
+    const cost = exercise ? amount*strike : amount*spot;
+    profit = other - cost - totalPremium;
+  }
+
+  document.getElementById('fh_out_exercise').textContent = exercise ? '行使する' : '行使しない';
+  document.getElementById('fh_out_profit').textContent = round2(profit);
+  document.getElementById('res-fxhedge').classList.add('show');
+}
+
+// ---- リアルオプション:延期オプション ----
+function calcRealOpt1(){
+  const mode=document.getElementById('ro_mode').value;
+  const V0=parseFloat(document.getElementById('ro_v0').value);
+  const u=parseFloat(document.getElementById('ro_u').value);
+  const d=parseFloat(document.getElementById('ro_d').value);
+  const r=parseFloat(document.getElementById('ro_r').value);
+  const x0=parseFloat(document.getElementById('ro_x0').value);
+  const x1=parseFloat(document.getElementById('ro_x1').value);
+
+  const Vu=V0*(1+u), Vd=V0*(1+d);
+  const p=(r-d)/(u-d);
+
+  let npvNow, payU, payD;
+  if(mode==='invest'){
+    npvNow = V0-x0;
+    payU = Math.max(Vu-x1,0);
+    payD = Math.max(Vd-x1,0);
+  } else {
+    npvNow = x0-V0;
+    payU = Math.max(x1-Vu,0);
+    payD = Math.max(x1-Vd,0);
+  }
+  const F0=(p*payU+(1-p)*payD)/(1+r);
+  const decision = F0>npvNow ? 't=1(延期する方が有利)' : 't=0(即時実施する方が有利)';
+
+  document.getElementById('ro_out_npv').textContent = round2(npvNow);
+  document.getElementById('ro_out_f0').textContent = round2(F0);
+  document.getElementById('ro_out_decision').textContent = decision;
+  document.getElementById('res-realopt1').classList.add('show');
+}
+
+// ---- リアルオプション:成長・撤退オプション ----
+function calcRealOpt2(){
+  const CF0=parseFloat(document.getElementById('rg_cf0').value);
+  const u=parseFloat(document.getElementById('rg_u').value);
+  const d=parseFloat(document.getElementById('rg_d').value);
+  const r=parseFloat(document.getElementById('rg_r').value);
+  const I=parseFloat(document.getElementById('rg_i').value);
+  const expandCost=parseFloat(document.getElementById('rg_expandcost').value);
+  const units=parseFloat(document.getElementById('rg_units').value);
+
+  const V0=CF0/r;
+  const Vu=V0*(1+u), Vd=V0*(1+d);
+  const p=(r-d)/(u-d);
+  const npvBase=V0-I;
+
+  const abandonU=Math.max(0-Vu,0), abandonD=Math.max(0-Vd,0);
+  const abandonOpt=(p*abandonU+(1-p)*abandonD)/(1+r);
+
+  const growthU=Math.max(Vu-expandCost,0)*units, growthD=Math.max(Vd-expandCost,0)*units;
+  const growthOpt=(p*growthU+(1-p)*growthD)/(1+r);
+
+  document.getElementById('rg_out_v0').textContent = round2(V0);
+  document.getElementById('rg_out_npvbase').textContent = round2(npvBase);
+  document.getElementById('rg_out_abandon').textContent = round2(abandonOpt);
+  document.getElementById('rg_out_npvabandon').textContent = round2(npvBase+abandonOpt);
+  document.getElementById('rg_out_growth').textContent = round2(growthOpt);
+  document.getElementById('rg_out_npvgrowth').textContent = round2(npvBase+growthOpt);
+  document.getElementById('rg_out_npvboth').textContent = round2(npvBase+abandonOpt+growthOpt);
+  document.getElementById('res-realopt2').classList.add('show');
+}
+
+// ---- 合併・買収:シナジーとNPV ----
+function calcMa1(){
+  const VA=parseFloat(document.getElementById('ma_va').value);
+  const sharesA=parseFloat(document.getElementById('ma_sharesA').value);
+  const VB=parseFloat(document.getElementById('ma_vb').value);
+  const sharesB=parseFloat(document.getElementById('ma_sharesB').value);
+  const VAB=parseFloat(document.getElementById('ma_vab').value);
+  const price=parseFloat(document.getElementById('ma_price').value);
+  const scale=parseFloat(document.getElementById('ma_scale').value);
+
+  const synergy = VAB-VA-VB;
+  const npvA = VAB-VA-price;
+  const aPricePost = (VA+npvA)*scale/sharesA;
+  const bPricePost = price*scale/sharesB;
+  const newShares = (price*sharesA)/(VAB-price);
+  const maxPrice = VAB-VA;
+  const maxPremiumPerShare = (maxPrice-VB)*scale/sharesB;
+
+  document.getElementById('ma_out_synergy').textContent = round2(synergy);
+  document.getElementById('ma_out_npv').textContent = round2(npvA);
+  document.getElementById('ma_out_apricepost').textContent = round2(aPricePost);
+  document.getElementById('ma_out_bpricepost').textContent = round2(bPricePost);
+  document.getElementById('ma_out_newshares').textContent = round2(newShares);
+  document.getElementById('ma_out_maxpremium').textContent = round2(maxPremiumPerShare);
+  document.getElementById('res-ma1').classList.add('show');
+}
+</script>
+</body>
+</html>
